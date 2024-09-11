@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        #map {
+            height: 94%;
+        }
+        #bearingControl {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="bearingControl">
+        <label for="bearingInput">KrakenSDR 1: </label>
+        <input type="number" id="bearingInput" min="0" max="360" value="0">
+        <button id="submitBearing">Apply</button>
+        <span id="bearingValue">0</span>°
+    </div>
+
+    <script>
+        // Загружаем данные с сервера для инициализации карты и маркеров
+        $.getJSON('/get_map_data', function(data) {
+            var map = L.map('map').setView([data.krakensdr_1.start_lat, data.krakensdr_1.start_lon], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            var line_1 = null;  // Переменная для хранения линии KrakenSDR 1
+            var line_2 = null;  // Переменная для хранения линии KrakenSDR 2
+
+            // Инициализация маркера KrakenSDR 1 с координатами из data.json
+            var marker_1 = L.marker([data.krakensdr_1.start_lat, data.krakensdr_1.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 1").openPopup();
+
+            // Инициализация маркера KrakenSDR 2 с координатами из data.json
+            var marker_2 = L.marker([data.krakensdr_2.start_lat, data.krakensdr_2.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 2").openPopup();
+
+            // Функция для обновления линий
+            function updateLines() {
+                $.getJSON('/get_map_data', function(data) {
+                    var startLatLng_1 = new L.LatLng(data.krakensdr_1.start_lat, data.krakensdr_1.start_lon);
+                    var endLatLng_1 = new L.LatLng(data.krakensdr_1.end_lat, data.krakensdr_1.end_lon);
+
+                    var startLatLng_2 = new L.LatLng(data.krakensdr_2.start_lat, data.krakensdr_2.start_lon);
+                    var endLatLng_2 = new L.LatLng(data.krakensdr_2.end_lat, data.krakensdr_2.end_lon);
+
+                    // Если линия KrakenSDR 1 уже существует, удаляем её
+                    if (line_1) {
+                        map.removeLayer(line_1);
+                    }
+
+                    // Если линия KrakenSDR 2 уже существует, удаляем её
+                    if (line_2) {
+                        map.removeLayer(line_2);
+                    }
+
+                    // Добавляем новую линию KrakenSDR 1 с обновленными координатами
+                    line_1 = L.polyline([startLatLng_1, endLatLng_1], {color: 'gray'}).addTo(map);
+
+                    // Добавляем новую линию KrakenSDR 2 с обновленными координатами
+                    line_2 = L.polyline([startLatLng_2, endLatLng_2], {color: 'blue'}).addTo(map);
+                });
+            }
+
+// red
+// blue
+// green
+// yellow
+// purple
+// orange
+// white
+// gray
+// pink
+// brown
+// cyan
+// magenta
+
+            // Обновляем линии каждые 5 секунд
+            setInterval(updateLines, 5000);
+
+            // Обработчик события dragend для маркера KrakenSDR 1
+            marker_1.on('dragend', function(e) {
+                var latLng_1 = marker_1.getLatLng();
+                var newLat_1 = latLng_1.lat;
+                var newLon_1 = latLng_1.lng;
+
+                // Обновляем файл data.json новыми координатами для KrakenSDR 1
+                $.ajax({
+                    url: '/update_coordinates',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        krakensdr: 'krakensdr_1',
+                        latitude: newLat_1,
+                        longitude: newLon_1
+                    }),
+                    success: function(response) {
+                        console.log('Координаты KrakenSDR 1 успешно обновлены');
+                    },
+                    error: function(error) {
+                        console.log('Ошибка обновления координат KrakenSDR 1:', error);
+                    }
+                });
+            });
+
+            // Обработчик события dragend для маркера KrakenSDR 2
+            marker_2.on('dragend', function(e) {
+                var latLng_2 = marker_2.getLatLng();
+                var newLat_2 = latLng_2.lat;
+                var newLon_2 = latLng_2.lng;
+
+                // Обновляем файл data.json новыми координатами для KrakenSDR 2
+                $.ajax({
+                    url: '/update_coordinates',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        krakensdr: 'krakensdr_2',
+                        latitude: newLat_2,
+                        longitude: newLon_2
+                    }),
+                    success: function(response) {
+                        console.log('Координаты KrakenSDR 2 успешно обновлены');
+                    },
+                    error: function(error) {
+                        console.log('Ошибка обновления координат KrakenSDR 2:', error);
+                    }
+                });
+            });
+        });
+
+        // Обработчик для подтверждения изменения значения bearing для KrakenSDR 1
+        $('#submitBearing').on('click', function() {
+            var bearingValue = $('#bearingInput').val();
+            $('#bearingValue').text(bearingValue);
+
+            // Отправляем новое значение bearing_deg на сервер для KrakenSDR 1
+            $.ajax({
+                url: '/update_bearing',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({bearing_deg: bearingValue}),
+                success: function(response) {
+                    console.log('Угол успешно обновлен');
+                },
+                error: function(error) {
+                    console.log('Ошибка обновления угла:', error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
