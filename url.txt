@@ -1,0 +1,4 @@
+https://github.com/godsic/krakensdr-containers
+https://github.com/krakenrf/krakensdr_doa
+https://github.com/krakenrf/gr-krakensdr/tree/main
+https://github.com/krakenrf/krakensdr_docs/wiki/09.-VirtualBox,-Docker-Images-and-Install-Scripts#virtualbox
