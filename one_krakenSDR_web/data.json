@@ -1,0 +1,12 @@
+{
+    "start_coordinates": {
+        "latitude": 50.38759017135196,
+        "longitude": 30.465746781555943
+    },
+    "distance_km": 7.5,
+    "bearing_deg": 10.0,
+    "angles_krakensdr": {
+        "max_y": 0.0,
+        "x_for_max_y": 1.0
+    }
+}
