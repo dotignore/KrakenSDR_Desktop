@@ -118,20 +118,9 @@
 
                             // Add new intersection markers
                             intersections.forEach(function(point) {
-                            var crossIcon = L.divIcon({
-                                className: 'cross-marker',  // Назначаем класс для маркера
-                                iconSize: [20, 20],         // Устанавливаем размер иконки
-                                html: `
-                                    <div style="position: relative; width: 20px; height: 20px;">
-                                        <div style="position: absolute; width: 2px; height: 20px; background-color: red; left: 9px;"></div>
-                                        <div style="position: absolute; width: 20px; height: 2px; background-color: red; top: 9px;"></div>
-                                    </div>`
+                                var marker = L.marker(point).addTo(map).bindPopup('Intersection Point').openPopup();
+                                intersectionMarkers.push(marker);
                             });
-                            
-                            // Добавляем маркер на карту
-                            var marker = L.marker(point, { icon: crossIcon }).addTo(map).bindPopup('Intersection Point');
-                            intersectionMarkers.push(marker);
-                        });
                         }
                     });
                 }

@@ -17,9 +17,9 @@ ws_url_1 = "ws://10.10.1.93:8080/_push"
 ws_url_2 = "ws://10.10.1.93:8080/_push"
 
 # Function to calculate the endpoint at a certain distance
-def calculate_new_point(lat, lon, distance_km, x_for_max_y):
+def calculate_new_point(lat, lon, distance_km, bearing_deg):
     R = 6371  # Radius of the Earth in kilometers
-    bearing = math.radians(x_for_max_y)  # Direction angle in radians, obtained from WebSocket
+    bearing = math.radians(bearing_deg)  # Convert bearing to radians
 
     lat_rad = math.radians(lat)
     lon_rad = math.radians(lon)
@@ -40,17 +40,19 @@ def calculate_new_point(lat, lon, distance_km, x_for_max_y):
 def index():
     return render_template('index.html')
 
-# Route to get line data
+# Route to get map data
 @app.route('/get_map_data')
 def get_map_data():
     global x_for_max_y_1, x_for_max_y_2
 
     try:
-        with open('data.json') as f:
-            data = json.load(f)
+        # Load data from each JSON file
+        with open('data_krkn_1.json') as f1, open('data_krkn_2.json') as f2:
+            data_krakensdr_1 = json.load(f1)
+            data_krakensdr_2 = json.load(f2)
 
         # Data for krakensdr_1
-        krakensdr_1_data = data.get('krakensdr_1', {})
+        krakensdr_1_data = data_krakensdr_1.get('krakensdr_1', {})
         start_coordinates_1 = krakensdr_1_data.get('start_coordinates', {})
         start_lat_1 = start_coordinates_1.get('latitude')
         start_lon_1 = start_coordinates_1.get('longitude')
@@ -64,7 +66,7 @@ def get_map_data():
             end_lat_1, end_lon_1 = start_lat_1, start_lon_1
 
         # Data for krakensdr_2
-        krakensdr_2_data = data.get('krakensdr_2', {})
+        krakensdr_2_data = data_krakensdr_2.get('krakensdr_2', {})
         start_coordinates_2 = krakensdr_2_data.get('start_coordinates', {})
         start_lat_2 = start_coordinates_2.get('latitude')
         start_lon_2 = start_coordinates_2.get('longitude')
@@ -93,7 +95,7 @@ def get_map_data():
         })
 
     except FileNotFoundError:
-        return jsonify({'error': 'data.json not found'}), 500
+        return jsonify({'error': 'Data files not found'}), 500
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -109,9 +111,10 @@ def update_coordinates():
     if not krakensdr or krakensdr not in ['krakensdr_1', 'krakensdr_2']:
         return jsonify({'error': 'Invalid KrakenSDR identifier'}), 400
 
-    # Update the data.json file with new coordinates
+    # Update the corresponding JSON file with new coordinates
     try:
-        with open('data.json', 'r+') as f:
+        file_name = 'data_krkn_1.json' if krakensdr == 'krakensdr_1' else 'data_krkn_2.json'
+        with open(file_name, 'r+') as f:
             json_data = json.load(f)
             
             # Update coordinates for the specified KrakenSDR
@@ -125,7 +128,7 @@ def update_coordinates():
         return jsonify({'status': 'success'})
 
     except FileNotFoundError:
-        return jsonify({'error': 'data.json not found'}), 500
+        return jsonify({'error': f'{file_name} not found'}), 500
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -140,7 +143,8 @@ def update_json(x_values, y_values, krakensdr):
         elif krakensdr == 'krakensdr_2':
             x_for_max_y_2 = x_values[y_values.index(max_y)]  # Update the global variable for krakensdr_2
 
-        with open('data.json', 'r+') as f:
+        file_name = 'data_krkn_1.json' if krakensdr == 'krakensdr_1' else 'data_krkn_2.json'
+        with open(file_name, 'r+') as f:
             data = json.load(f)
             
             if krakensdr == 'krakensdr_1':
