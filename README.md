@@ -1,4 +1,10 @@
+Version TWO KrakenSDRs
+
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/two_KrakenSDRs_web/map.png)
+
+Version ONE KrakenSDR
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/one_krakenSDR_web/map.png)
 
 REMOTE COMPUTER
 
