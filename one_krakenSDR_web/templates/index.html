@@ -30,80 +30,80 @@
     </div>
 
     <script>
-        // Загружаем данные с сервера для инициализации карты и маркера
+        // Load data from the server to initialize the map and marker
         $.getJSON('/get_map_data', function(data) {
             var startLat = data.start_lat;
             var startLon = data.start_lon;
 
-            // Инициализация карты
+            // Initialize the map
             var map = L.map('map').setView([startLat, startLon], 13);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19
             }).addTo(map);
 
-            var line = null;  // Переменная для хранения линии
+            var line = null;  // Variable to store the line
 
-            // Инициализация маркера с координатами из data.json
+            // Initialize the marker with coordinates from data.json
             var marker = L.marker([startLat, startLon], {draggable: true}).addTo(map).bindPopup("Start Point").openPopup();
 
-            // Обработчик события dragend для обновления координат маркера
+            // Event handler for dragend to update marker coordinates
             marker.on('dragend', function(e) {
                 var latLng = marker.getLatLng();
                 var newLat = latLng.lat;
                 var newLon = latLng.lng;
 
-                // Обновляем файл data.json новыми координатами маркера
+                // Update the data.json file with the new marker coordinates
                 $.ajax({
                     url: '/update_coordinates',
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({latitude: newLat, longitude: newLon}),
                     success: function(response) {
-                        console.log('Координаты успешно обновлены');
+                        console.log('Coordinates updated successfully');
                     },
                     error: function(error) {
-                        console.log('Ошибка обновления координат:', error);
+                        console.log('Error updating coordinates:', error);
                     }
                 });
             });
 
-            // Функция для обновления линии
+            // Function to update the line
             function updateLine() {
                 $.getJSON('/get_map_data', function(data) {
                     var startLatLng = new L.LatLng(data.start_lat, data.start_lon);
                     var endLatLng = new L.LatLng(data.end_lat, data.end_lon);
 
-                    // Если линия уже существует, удаляем её
+                    // If the line already exists, remove it
                     if (line) {
                         map.removeLayer(line);
                     }
 
-                    // Добавляем новую линию с обновленными координатами
+                    // Add a new line with updated coordinates
                     line = L.polyline([startLatLng, endLatLng], {color: 'blue'}).addTo(map);
                 });
             }
 
-            // Обновляем линию каждые 5 секунд
+            // Update the line every 5 seconds
             setInterval(updateLine, 5000);
         });
 
-        // Обработчик для подтверждения изменения значения bearing
+        // Handler to confirm the change in bearing value
         $('#submitBearing').on('click', function() {
             var bearingValue = $('#bearingInput').val();
             $('#bearingValue').text(bearingValue);
 
-            // Отправляем новое значение bearing_deg на сервер
+            // Send the new bearing_deg value to the server
             $.ajax({
                 url: '/update_bearing',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({bearing_deg: bearingValue}),
                 success: function(response) {
-                    console.log('Угол успешно обновлен');
+                    console.log('Bearing updated successfully');
                 },
                 error: function(error) {
-                    console.log('Ошибка обновления угла:', error);
+                    console.log('Error updating bearing:', error);
                 }
             });
         });

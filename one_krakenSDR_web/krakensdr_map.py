@@ -10,13 +10,13 @@ import websockets
 
 app = Flask(__name__)
 
-# Глобальная переменная для хранения x_for_max_y
+# Global variable for storing x_for_max_y
 x_for_max_y = None
 
-# Функция для вычисления конечной точки на определённом расстоянии
+# Function to calculate the endpoint at a certain distance
 def calculate_new_point(lat, lon, distance_km, x_for_max_y):
-    R = 6371  # Радиус Земли в километрах
-    bearing = math.radians(x_for_max_y)  # Угол направления в радианах, получаем значение из WebSocket
+    R = 6371  # Earth's radius in kilometers
+    bearing = math.radians(x_for_max_y)  # Direction angle in radians, obtained from WebSocket
 
     lat_rad = math.radians(lat)
     lon_rad = math.radians(lon)
@@ -32,15 +32,15 @@ def calculate_new_point(lat, lon, distance_km, x_for_max_y):
 
     return new_lat, new_lon
 
-# Маршрут для главной страницы
+# Route for the main page
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Маршрут для получения данных линии
+# Route to get line data
 @app.route('/get_map_data')
 def get_map_data():
-    global x_for_max_y  # Используем глобальную переменную x_for_max_y
+    global x_for_max_y  # Using the global variable x_for_max_y
 
     with open('data.json') as f:
         data = json.load(f)
@@ -51,12 +51,12 @@ def get_map_data():
     bearing_deg = data['bearing_deg']
     bearing_deg
 
-    # Если значение x_for_max_y существует, добавляем 50 градусов
+    # If x_for_max_y exists, add 50 degrees
     if x_for_max_y is not None:
-        x_for_max_y_modified = (x_for_max_y + bearing_deg) % 360  # Увеличиваем на 50 градусов и делаем по модулю 360
+        x_for_max_y_modified = (x_for_max_y + bearing_deg) % 360  # Add 50 degrees and take modulo 360
         end_lat, end_lon = calculate_new_point(start_lat, start_lon, distance_km, x_for_max_y_modified)
     else:
-        # Если значение x_for_max_y еще не получено, возвращаем начальные координаты
+        # If x_for_max_y has not been received yet, return the initial coordinates
         end_lat, end_lon = start_lat, start_lon
 
     return jsonify({
@@ -66,21 +66,21 @@ def get_map_data():
         'end_lon': end_lon
     })
 
-# Маршрут для обновления координат маркера
+# Route for updating marker coordinates
 @app.route('/update_coordinates', methods=['POST'])
 def update_coordinates():
-    data = request.json  # Получаем данные из запроса
+    data = request.json  # Get data from the request
     new_lat = data.get('latitude')
     new_lon = data.get('longitude')
 
-    # Обновляем файл data.json новыми координатами
+    # Update the data.json file with new coordinates
     with open('data.json', 'r+') as f:
         json_data = json.load(f)
         json_data['start_coordinates']['latitude'] = new_lat
         json_data['start_coordinates']['longitude'] = new_lon
         f.seek(0)
         json.dump(json_data, f, indent=4)
-        f.truncate()  # Удаляем остатки старых данных
+        f.truncate()  # Remove remnants of old data
 
     return jsonify({'status': 'success'})
 
@@ -88,14 +88,14 @@ def update_coordinates():
 def update_bearing():
     new_bearing = request.json.get('bearing_deg')
     
-    # Загружаем данные из data.json
+    # Load data from data.json
     with open('data.json', 'r') as f:
         data = json.load(f)
     
-    # Обновляем значение bearing_deg
+    # Update the bearing_deg value
     data['bearing_deg'] = float(new_bearing)
     
-    # Сохраняем обновленные данные обратно в data.json
+    # Save the updated data back to data.json
     with open('data.json', 'w') as f:
         json.dump(data, f, indent=4)
     
@@ -104,20 +104,20 @@ def update_bearing():
 def open_browser():
     webbrowser.open_new('http://127.0.0.1:5000/')
 
-# Функция для запуска веб-сервера Flask
+# Function to run the Flask web server
 def run_flask_app():
     Timer(1, open_browser).start()
     app.run(debug=True, use_reloader=False)
 
-# websocket_code.py (встроенный в этот скрипт для удобства)
+# websocket_code.py (embedded in this script for convenience)
 ws_url = "ws://10.10.1.93:8080/_push"
 
-# Функция для обновления JSON и получения x_for_max_y
+# Function to update JSON and get x_for_max_y
 def update_json(x_values, y_values):
-    global x_for_max_y  # Объявляем глобальную переменную для использования
+    global x_for_max_y  # Declare global variable for use
     if x_values and y_values:
         max_y = max(y_values)
-        x_for_max_y = x_values[y_values.index(max_y)]  # Обновляем значение глобальной переменной
+        x_for_max_y = x_values[y_values.index(max_y)]  # Update the global variable value
         
         with open('data.json', 'r+') as f:
             data = json.load(f)
@@ -131,7 +131,7 @@ def update_json(x_values, y_values):
             json.dump(data, f, indent=4)
             f.truncate()
 
-# Функция для обработки данных JSON
+# Function to process JSON data
 def process_json_data(json_str):
     global x_values, y_values
     try:
@@ -143,21 +143,21 @@ def process_json_data(json_str):
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
 
-# Функция для работы с WebSocket
+# Function to handle WebSocket
 async def receive_data():
     async with websockets.connect(ws_url) as websocket:
         while True:
             message = await websocket.recv()
             process_json_data(message)
 
-# Функция для запуска WebSocket в отдельном потоке
+# Function to run WebSocket in a separate thread
 def run_websocket():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(receive_data())
 
 if __name__ == '__main__':
-    # Запускаем Flask и WebSocket параллельно
+    # Run Flask and WebSocket in parallel
     flask_thread = Thread(target=run_flask_app)
     websocket_thread = Thread(target=run_websocket)
 
