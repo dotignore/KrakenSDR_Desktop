@@ -1,3 +1,11 @@
+
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/structure.jpg)
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/ScreenRecording2024-09-13at22.46.49.gif)
+
 Version TWO KrakenSDRs
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/two_KrakenSDRs_web/map.png)
