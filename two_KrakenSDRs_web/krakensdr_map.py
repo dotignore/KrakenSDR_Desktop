@@ -8,18 +8,18 @@ import websockets
 
 app = Flask(__name__)
 
-# Global variables for storing x_for_max_y
+# Глобальные переменные для хранения x_for_max_y
 x_for_max_y_1 = None
 x_for_max_y_2 = None
 
-# WebSocket URLs for krakensdr_1 and krakensdr_2
+# WebSocket адреса для krakensdr_1 и krakensdr_2
 ws_url_1 = "ws://10.10.1.93:8080/_push"
 ws_url_2 = "ws://10.10.1.93:8080/_push"
 
-# Function to calculate the endpoint at a certain distance
-def calculate_new_point(lat, lon, distance_km, bearing_deg):
-    R = 6371  # Radius of the Earth in kilometers
-    bearing = math.radians(bearing_deg)  # Convert bearing to radians
+# Функция для вычисления конечной точки на определённом расстоянии
+def calculate_new_point(lat, lon, distance_km, x_for_max_y):
+    R = 6371  # Радиус Земли в километрах
+    bearing = math.radians(x_for_max_y)  # Угол направления в радианах, получаем значение из WebSocket
 
     lat_rad = math.radians(lat)
     lon_rad = math.radians(lon)
@@ -35,24 +35,22 @@ def calculate_new_point(lat, lon, distance_km, bearing_deg):
 
     return new_lat, new_lon
 
-# Route for the main page
+# Маршрут для главной страницы
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Route to get map data
+# Маршрут для получения данных линии
 @app.route('/get_map_data')
 def get_map_data():
     global x_for_max_y_1, x_for_max_y_2
 
     try:
-        # Load data from each JSON file
-        with open('data_krkn_1.json') as f1, open('data_krkn_2.json') as f2:
-            data_krakensdr_1 = json.load(f1)
-            data_krakensdr_2 = json.load(f2)
+        with open('data.json') as f:
+            data = json.load(f)
 
-        # Data for krakensdr_1
-        krakensdr_1_data = data_krakensdr_1.get('krakensdr_1', {})
+        # Данные для krakensdr_1
+        krakensdr_1_data = data.get('krakensdr_1', {})
         start_coordinates_1 = krakensdr_1_data.get('start_coordinates', {})
         start_lat_1 = start_coordinates_1.get('latitude')
         start_lon_1 = start_coordinates_1.get('longitude')
@@ -65,8 +63,8 @@ def get_map_data():
         else:
             end_lat_1, end_lon_1 = start_lat_1, start_lon_1
 
-        # Data for krakensdr_2
-        krakensdr_2_data = data_krakensdr_2.get('krakensdr_2', {})
+        # Данные для krakensdr_2
+        krakensdr_2_data = data.get('krakensdr_2', {})
         start_coordinates_2 = krakensdr_2_data.get('start_coordinates', {})
         start_lat_2 = start_coordinates_2.get('latitude')
         start_lon_2 = start_coordinates_2.get('longitude')
@@ -95,56 +93,54 @@ def get_map_data():
         })
 
     except FileNotFoundError:
-        return jsonify({'error': 'Data files not found'}), 500
+        return jsonify({'error': 'data.json not found'}), 500
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Route for updating marker coordinates
+# Маршрут для обновления координат маркера
 @app.route('/update_coordinates', methods=['POST'])
 def update_coordinates():
-    data = request.json  # Get data from the request
-    krakensdr = data.get('krakensdr')  # Determine which KrakenSDR to update
+    data = request.json  # Получаем данные из запроса
+    krakensdr = data.get('krakensdr')  # Определяем, какой KrakenSDR обновлять
     new_lat = data.get('latitude')
     new_lon = data.get('longitude')
 
     if not krakensdr or krakensdr not in ['krakensdr_1', 'krakensdr_2']:
         return jsonify({'error': 'Invalid KrakenSDR identifier'}), 400
 
-    # Update the corresponding JSON file with new coordinates
+    # Обновляем файл data.json новыми координатами
     try:
-        file_name = 'data_krkn_1.json' if krakensdr == 'krakensdr_1' else 'data_krkn_2.json'
-        with open(file_name, 'r+') as f:
+        with open('data.json', 'r+') as f:
             json_data = json.load(f)
             
-            # Update coordinates for the specified KrakenSDR
+            # Обновляем координаты для указанного KrakenSDR
             json_data[krakensdr]['start_coordinates']['latitude'] = new_lat
             json_data[krakensdr]['start_coordinates']['longitude'] = new_lon
             
             f.seek(0)
             json.dump(json_data, f, indent=4)
-            f.truncate()  # Remove the remnants of old data
+            f.truncate()  # Удаляем остатки старых данных
 
         return jsonify({'status': 'success'})
 
     except FileNotFoundError:
-        return jsonify({'error': f'{file_name} not found'}), 500
+        return jsonify({'error': 'data.json not found'}), 500
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Function to update JSON for each KrakenSDR
+# Функция для обновления JSON для каждого KrakenSDR
 def update_json(x_values, y_values, krakensdr):
     global x_for_max_y_1, x_for_max_y_2
     if x_values and y_values:
         max_y = max(y_values)
         if krakensdr == 'krakensdr_1':
-            x_for_max_y_1 = x_values[y_values.index(max_y)]  # Update the global variable for krakensdr_1
+            x_for_max_y_1 = x_values[y_values.index(max_y)]  # Обновляем значение глобальной переменной для krakensdr_1
         elif krakensdr == 'krakensdr_2':
-            x_for_max_y_2 = x_values[y_values.index(max_y)]  # Update the global variable for krakensdr_2
+            x_for_max_y_2 = x_values[y_values.index(max_y)]  # Обновляем значение глобальной переменной для krakensdr_2
 
-        file_name = 'data_krkn_1.json' if krakensdr == 'krakensdr_1' else 'data_krkn_2.json'
-        with open(file_name, 'r+') as f:
+        with open('data.json', 'r+') as f:
             data = json.load(f)
             
             if krakensdr == 'krakensdr_1':
@@ -164,7 +160,7 @@ def update_json(x_values, y_values, krakensdr):
             json.dump(data, f, indent=4)
             f.truncate()
 
-# Function to process JSON data
+# Функция для обработки данных JSON
 def process_json_data(json_str, krakensdr):
     try:
         item = json.loads(json_str)
@@ -175,30 +171,30 @@ def process_json_data(json_str, krakensdr):
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
 
-# Function to handle WebSocket
+# Функция для работы с WebSocket
 async def receive_data(ws_url, krakensdr):
     async with websockets.connect(ws_url) as websocket:
         while True:
             message = await websocket.recv()
             process_json_data(message, krakensdr)
 
-# Function to launch WebSocket for each KrakenSDR
+# Функция для запуска WebSocket для каждого KrakenSDR
 def run_websocket(ws_url, krakensdr):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(receive_data(ws_url, krakensdr))
 
-# Function to launch the Flask web server
+# Функция для запуска веб-сервера Flask
 def run_flask_app():
     Timer(1, open_browser).start()
     app.run(debug=True, use_reloader=False)
 
-# Open the default browser
+# Открытие браузера по умолчанию
 def open_browser():
     webbrowser.open_new('http://127.0.0.1:5000/')
 
 if __name__ == '__main__':
-    # Run Flask and WebSocket for each KrakenSDR in parallel
+    # Запускаем Flask и WebSocket для каждого KrakenSDR параллельно
     flask_thread = Thread(target=run_flask_app)
     websocket_thread_1 = Thread(target=run_websocket, args=(ws_url_1, 'krakensdr_1'))
     websocket_thread_2 = Thread(target=run_websocket, args=(ws_url_2, 'krakensdr_2'))

@@ -8,7 +8,7 @@
         "bearing_deg": 80.0,
         "angles_krakensdr": {
             "max_y": 0.0,
-            "x_for_max_y": 0.0
+            "x_for_max_y": 340.0
         }
     }
 }

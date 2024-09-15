@@ -30,190 +30,41 @@
     </div>
 
     <script>
-        var intersections = []; // Array to store intersection points
-        var intersectionMarkers = []; // Array to store markers on the map
-
-        // Function to calculate intersection point of two lines
-        function calculateIntersection(line1, line2) {
-            var x1 = line1[0].lng, y1 = line1[0].lat,
-                x2 = line1[1].lng, y2 = line1[1].lat,
-                x3 = line2[0].lng, y3 = line2[0].lat,
-                x4 = line2[1].lng, y4 = line2[1].lat;
-
-            var denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-            if (denom === 0) {
-                return null; // Lines are parallel or coincident
-            }
-
-            var intersectX = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
-            var intersectY = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
-
-            // Check if the intersection point is within the segments
-            if ((intersectX >= Math.min(x1, x2) && intersectX <= Math.max(x1, x2)) &&
-                (intersectX >= Math.min(x3, x4) && intersectX <= Math.max(x3, x4)) &&
-                (intersectY >= Math.min(y1, y2) && intersectY <= Math.max(y1, y2)) &&
-                (intersectY >= Math.min(y3, y4) && intersectY <= Math.max(y3, y4))) {
-                return [intersectY, intersectX]; // Return as [lat, lng]
-            }
-
-            return null; // No valid intersection
-        }
-
-        // Load map data for KrakenSDR 1 and KrakenSDR 2
+        // Load data from JSON and update bearing value
         function loadMapData() {
-            $.getJSON('/get_map_data', function(data) {
-                var map = L.map('map').setView([data.krakensdr_1.start_lat, data.krakensdr_1.start_lon], 13);
+            // Загрузка JSON-файла
+            $.getJSON('data_krkn_1.json', function(data) {
+                // Получаем значение bearing_deg из JSON
+                var bearingDeg = data.krakensdr_1.bearing_deg;
+
+                // Устанавливаем это значение в span и input
+                $('#bearingValue').text(bearingDeg);   // Обновляем значение в span
+                $('#bearingInput').val(bearingDeg);    // Обновляем значение в input поле
+
+                // Создаем карту с координатами из JSON
+                var map = L.map('map').setView([data.krakensdr_1.start_coordinates.latitude, data.krakensdr_1.start_coordinates.longitude], 13);
 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19
                 }).addTo(map);
 
-                var line_1 = null;  // Line for KrakenSDR 1
-                var line_2 = null;  // Line for KrakenSDR 2
-
-                // KrakenSDR 1 marker
-                var marker_1 = L.marker([data.krakensdr_1.start_lat, data.krakensdr_1.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 1").openPopup();
-
-                // KrakenSDR 2 marker
-                var marker_2 = L.marker([data.krakensdr_2.start_lat, data.krakensdr_2.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 2").openPopup();
-
-                // Function to update the lines on the map
-                function updateLines() {
-                    $.getJSON('/get_map_data', function(data) {
-                        var startLatLng_1 = new L.LatLng(data.krakensdr_1.start_lat, data.krakensdr_1.start_lon);
-                        var endLatLng_1 = new L.LatLng(data.krakensdr_1.end_lat, data.krakensdr_1.end_lon);
-
-                        var startLatLng_2 = new L.LatLng(data.krakensdr_2.start_lat, data.krakensdr_2.start_lon);
-                        var endLatLng_2 = new L.LatLng(data.krakensdr_2.end_lat, data.krakensdr_2.end_lon);
-
-                        // Remove existing lines if they exist
-                        if (line_1) {
-                            map.removeLayer(line_1);
-                        }
-                        if (line_2) {
-                            map.removeLayer(line_2);
-                        }
-
-                        // Add new KrakenSDR 1 line
-                        line_1 = L.polyline([startLatLng_1, endLatLng_1], {color: 'gray'}).addTo(map);
-
-                        // Add new KrakenSDR 2 line
-                        line_2 = L.polyline([startLatLng_2, endLatLng_2], {color: 'blue'}).addTo(map);
-
-                        // Calculate intersection point
-                        var intersection = calculateIntersection([startLatLng_1, endLatLng_1], [startLatLng_2, endLatLng_2]);
-                        if (intersection) {
-                            intersections.push(intersection);
-
-                            // Limit to last 10 intersections
-                            if (intersections.length > 10) {
-                                intersections.shift();
-                            }
-
-                            // Clear old markers
-                            intersectionMarkers.forEach(function(marker) {
-                                map.removeLayer(marker);
-                            });
-                            intersectionMarkers = [];
-
-                            // Add new intersection markers
-                            intersections.forEach(function(point) {
-                            var crossIcon = L.divIcon({
-                                className: 'cross-marker',  // Назначаем класс для маркера
-                                iconSize: [20, 20],         // Устанавливаем размер иконки
-                                html: `
-                                    <div style="position: relative; width: 20px; height: 20px;">
-                                        <div style="position: absolute; width: 2px; height: 20px; background-color: red; left: 9px;"></div>
-                                        <div style="position: absolute; width: 20px; height: 2px; background-color: red; top: 9px;"></div>
-                                    </div>`
-                            });
-                            
-                            // Добавляем маркер на карту
-                            var marker = L.marker(point, { icon: crossIcon }).addTo(map).bindPopup('Intersection Point');
-                            intersectionMarkers.push(marker);
-                        });
-                        }
-                    });
-                }
-
-                // Update the lines every 5 seconds
-                setInterval(updateLines, 5000);
-
-                // Event handler for KrakenSDR 1 marker drag event
-                marker_1.on('dragend', function(e) {
-                    var latLng_1 = marker_1.getLatLng();
-                    var newLat_1 = latLng_1.lat;
-                    var newLon_1 = latLng_1.lng;
-
-                    // Update coordinates for KrakenSDR 1
-                    $.ajax({
-                        url: '/update_coordinates',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            krakensdr: 'krakensdr_1',
-                            latitude: newLat_1,
-                            longitude: newLon_1
-                        }),
-                        success: function(response) {
-                            console.log('Coordinates for KrakenSDR 1 successfully updated');
-                        },
-                        error: function(error) {
-                            console.log('Error updating coordinates for KrakenSDR 1:', error);
-                        }
-                    });
-                });
-
-                // Event handler for KrakenSDR 2 marker drag event
-                marker_2.on('dragend', function(e) {
-                    var latLng_2 = marker_2.getLatLng();
-                    var newLat_2 = latLng_2.lat;
-                    var newLon_2 = latLng_2.lng;
-
-                    // Update coordinates for KrakenSDR 2
-                    $.ajax({
-                        url: '/update_coordinates',
-                        type: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            krakensdr: 'krakensdr_2',
-                            latitude: newLat_2,
-                            longitude: newLon_2
-                        }),
-                        success: function(response) {
-                            console.log('Coordinates for KrakenSDR 2 successfully updated');
-                        },
-                        error: function(error) {
-                            console.log('Error updating coordinates for KrakenSDR 2:', error);
-                        }
-                    });
-                });
+                // Добавляем маркер для KrakenSDR 1
+                var marker_1 = L.marker([data.krakensdr_1.start_coordinates.latitude, data.krakensdr_1.start_coordinates.longitude], {draggable: true}).addTo(map).bindPopup("KrakenSDR 1").openPopup();
             });
         }
 
-        // Load the map data when the page is ready
+        // Загружаем данные и обновляем страницу при загрузке
         $(document).ready(function() {
             loadMapData();
         });
 
-        // Handler for KrakenSDR 1 bearing change
+        // Обработчик изменения направления KrakenSDR 1
         $('#submitBearing').on('click', function() {
             var bearingValue = $('#bearingInput').val();
             $('#bearingValue').text(bearingValue);
 
-            // Update bearing for KrakenSDR 1
-            $.ajax({
-                url: '/update_bearing',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({bearing_deg: bearingValue}),
-                success: function(response) {
-                    console.log('Bearing successfully updated');
-                },
-                error: function(error) {
-                    console.log('Error updating bearing:', error);
-                }
-            });
+            // Здесь вы можете отправить новое значение на сервер, если нужно
+            // $.ajax({...});
         });
     </script>
 </body>
