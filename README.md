@@ -1,5 +1,3 @@
-
-
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/structure.jpg)
