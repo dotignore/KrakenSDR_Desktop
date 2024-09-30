@@ -10,10 +10,6 @@ Toolbar
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/tools.png)
 
-Version ONE KrakenSDR
-
-![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/one_krakenSDR_web/map.png)
-
 LOG (Time, Freq, Name KrakenSDR, GPS, Bearing degree, Direction degree) 
 
 ```python
@@ -34,4 +30,10 @@ Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz, KrakenSDR 2: N=50.4796571687164
 - Data display on the map. 
 - Sorting: by date, by frequency, by region on the map. 
 - Discarding incorrect data.
+
+
+Version ONE KrakenSDR
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/one_krakenSDR_web/map.png)
+
 
