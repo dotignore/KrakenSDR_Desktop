@@ -1,3 +1,7 @@
+**My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr**
+
+------------
+
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
 
 ------------
