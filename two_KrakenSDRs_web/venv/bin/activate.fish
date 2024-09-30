@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/dotignore/Documents/GitHub/KrakenSDR_direction/flask/venv"
+set -gx VIRTUAL_ENV "/Users/dotignore/Documents/GitHub/KrakenSDR_Desktop/two_KrakenSDRs_web/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

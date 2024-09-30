@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import http
 import logging
 import socket
@@ -13,22 +14,35 @@ from typing import (
     Generator,
     Iterable,
     Sequence,
+    Tuple,
+    cast,
 )
 
-from websockets.frames import CloseCode
-
+from ..exceptions import InvalidHeader
 from ..extensions.base import ServerExtensionFactory
 from ..extensions.permessage_deflate import enable_server_permessage_deflate
-from ..headers import validate_subprotocols
+from ..frames import CloseCode
+from ..headers import (
+    build_www_authenticate_basic,
+    parse_authorization_basic,
+    validate_subprotocols,
+)
 from ..http11 import SERVER, Request, Response
-from ..protocol import CONNECTING, Event
+from ..protocol import CONNECTING, OPEN, Event
 from ..server import ServerProtocol
 from ..typing import LoggerLike, Origin, StatusLike, Subprotocol
 from .compatibility import asyncio_timeout
 from .connection import Connection, broadcast
 
 
-__all__ = ["broadcast", "serve", "unix_serve", "ServerConnection", "Server"]
+__all__ = [
+    "broadcast",
+    "serve",
+    "unix_serve",
+    "ServerConnection",
+    "Server",
+    "basic_auth",
+]
 
 
 class ServerConnection(Connection):
@@ -79,6 +93,7 @@ class ServerConnection(Connection):
         )
         self.server = server
         self.request_rcvd: asyncio.Future[None] = self.loop.create_future()
+        self.username: str  # see basic_auth()
 
     def respond(self, status: StatusLike, text: str) -> Response:
         """
@@ -123,78 +138,75 @@ class ServerConnection(Connection):
         Perform the opening handshake.
 
         """
-        # May raise CancelledError if open_timeout is exceeded.
-        await self.request_rcvd
+        await asyncio.wait(
+            [self.request_rcvd, self.connection_lost_waiter],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
 
-        if self.request is None:
-            raise ConnectionError("connection closed during handshake")
+        if self.request is not None:
+            async with self.send_context(expected_state=CONNECTING):
+                response = None
 
-        async with self.send_context(expected_state=CONNECTING):
-            response = None
+                if process_request is not None:
+                    try:
+                        response = process_request(self, self.request)
+                        if isinstance(response, Awaitable):
+                            response = await response
+                    except Exception as exc:
+                        self.protocol.handshake_exc = exc
+                        response = self.protocol.reject(
+                            http.HTTPStatus.INTERNAL_SERVER_ERROR,
+                            (
+                                "Failed to open a WebSocket connection.\n"
+                                "See server log for more information.\n"
+                            ),
+                        )
 
-            if process_request is not None:
-                try:
-                    response = process_request(self, self.request)
-                    if isinstance(response, Awaitable):
-                        response = await response
-                except Exception as exc:
-                    self.protocol.handshake_exc = exc
-                    self.logger.error("opening handshake failed", exc_info=True)
-                    response = self.protocol.reject(
-                        http.HTTPStatus.INTERNAL_SERVER_ERROR,
-                        (
-                            "Failed to open a WebSocket connection.\n"
-                            "See server log for more information.\n"
-                        ),
-                    )
-
-            if response is None:
-                if self.server.is_serving():
-                    self.response = self.protocol.accept(self.request)
+                if response is None:
+                    if self.server.is_serving():
+                        self.response = self.protocol.accept(self.request)
+                    else:
+                        self.response = self.protocol.reject(
+                            http.HTTPStatus.SERVICE_UNAVAILABLE,
+                            "Server is shutting down.\n",
+                        )
                 else:
-                    self.response = self.protocol.reject(
-                        http.HTTPStatus.SERVICE_UNAVAILABLE,
-                        "Server is shutting down.\n",
-                    )
-            else:
-                assert isinstance(response, Response)  # help mypy
-                self.response = response
+                    assert isinstance(response, Response)  # help mypy
+                    self.response = response
 
-            if server_header:
-                self.response.headers["Server"] = server_header
+                if server_header:
+                    self.response.headers["Server"] = server_header
 
-            response = None
+                response = None
 
-            if process_response is not None:
-                try:
-                    response = process_response(self, self.request, self.response)
-                    if isinstance(response, Awaitable):
-                        response = await response
-                except Exception as exc:
-                    self.protocol.handshake_exc = exc
-                    self.logger.error("opening handshake failed", exc_info=True)
-                    response = self.protocol.reject(
-                        http.HTTPStatus.INTERNAL_SERVER_ERROR,
-                        (
-                            "Failed to open a WebSocket connection.\n"
-                            "See server log for more information.\n"
-                        ),
-                    )
+                if process_response is not None:
+                    try:
+                        response = process_response(self, self.request, self.response)
+                        if isinstance(response, Awaitable):
+                            response = await response
+                    except Exception as exc:
+                        self.protocol.handshake_exc = exc
+                        response = self.protocol.reject(
+                            http.HTTPStatus.INTERNAL_SERVER_ERROR,
+                            (
+                                "Failed to open a WebSocket connection.\n"
+                                "See server log for more information.\n"
+                            ),
+                        )
 
-            if response is not None:
-                assert isinstance(response, Response)  # help mypy
-                self.response = response
+                if response is not None:
+                    assert isinstance(response, Response)  # help mypy
+                    self.response = response
 
-            self.protocol.send_response(self.response)
+                self.protocol.send_response(self.response)
 
-        if self.protocol.handshake_exc is None:
-            self.start_keepalive()
-        else:
-            try:
-                async with asyncio_timeout(self.close_timeout):
-                    await self.connection_lost_waiter
-            finally:
-                raise self.protocol.handshake_exc
+        # self.protocol.handshake_exc is always set when the connection is lost
+        # before receiving a request, when the request cannot be parsed, when
+        # the handshake encounters an error, or when process_request or
+        # process_response sends an HTTP response that rejects the handshake.
+
+        if self.protocol.handshake_exc is not None:
+            raise self.protocol.handshake_exc
 
     def process_event(self, event: Event) -> None:
         """
@@ -213,14 +225,6 @@ class ServerConnection(Connection):
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         super().connection_made(transport)
         self.server.start_connection_handler(self)
-
-    def connection_lost(self, exc: Exception | None) -> None:
-        try:
-            super().connection_lost(exc)
-        finally:
-            # If the connection is closed during the handshake, unblock it.
-            if not self.request_rcvd.done():
-                self.request_rcvd.set_result(None)
 
 
 class Server:
@@ -298,6 +302,18 @@ class Server:
         # Completed when the server is closed and connections are terminated.
         self.closed_waiter: asyncio.Future[None] = self.loop.create_future()
 
+    @property
+    def connections(self) -> set[ServerConnection]:
+        """
+        Set of active connections.
+
+        This property contains all connections that completed the opening
+        handshake successfully and didn't start the closing handshake yet.
+        It can be useful in combination with :func:`~broadcast`.
+
+        """
+        return {connection for connection in self.handlers if connection.state is OPEN}
+
     def wrap(self, server: asyncio.Server) -> None:
         """
         Attach to a given :class:`asyncio.Server`.
@@ -337,25 +353,37 @@ class Server:
 
         """
         try:
-            # On failure, handshake() closes the transport, raises an
-            # exception, and logs it.
             async with asyncio_timeout(self.open_timeout):
-                await connection.handshake(
-                    self.process_request,
-                    self.process_response,
-                    self.server_header,
-                )
+                try:
+                    await connection.handshake(
+                        self.process_request,
+                        self.process_response,
+                        self.server_header,
+                    )
+                except asyncio.CancelledError:
+                    connection.close_transport()
+                    raise
+                except Exception:
+                    connection.logger.error("opening handshake failed", exc_info=True)
+                    connection.close_transport()
+                    return
 
+            assert connection.protocol.state is OPEN
             try:
+                connection.start_keepalive()
                 await self.handler(connection)
             except Exception:
-                self.logger.error("connection handler failed", exc_info=True)
+                connection.logger.error("connection handler failed", exc_info=True)
                 await connection.close(CloseCode.INTERNAL_ERROR)
             else:
                 await connection.close()
 
-        except Exception:
-            # Don't leak connections on errors.
+        except TimeoutError:
+            # When the opening handshake times out, there's nothing to log.
+            pass
+
+        except Exception:  # pragma: no cover
+            # Don't leak connections on unexpected errors.
             connection.transport.abort()
 
         finally:
@@ -548,19 +576,21 @@ class serve:
     :class:`asyncio.Server`. Treat it as an asynchronous context manager to
     ensure that the server will be closed::
 
+        from websockets.asyncio.server import serve
+
         def handler(websocket):
             ...
 
         # set this future to exit the server
         stop = asyncio.get_running_loop().create_future()
 
-        async with websockets.asyncio.server.serve(handler, host, port):
+        async with serve(handler, host, port):
             await stop
 
     Alternatively, call :meth:`~Server.serve_forever` to serve requests and
     cancel it to stop the server::
 
-        server = await websockets.asyncio.server.serve(handler, host, port)
+        server = await serve(handler, host, port)
         await server.serve_forever()
 
     Args:
@@ -664,14 +694,14 @@ class serve:
         process_request: (
             Callable[
                 [ServerConnection, Request],
-                Response | None,
+                Awaitable[Response | None] | Response | None,
             ]
             | None
         ) = None,
         process_response: (
             Callable[
                 [ServerConnection, Request, Response],
-                Response | None,
+                Awaitable[Response | None] | Response | None,
             ]
             | None
         ) = None,
@@ -693,7 +723,6 @@ class serve:
         # Other keyword arguments are passed to loop.create_server
         **kwargs: Any,
     ) -> None:
-
         if subprotocols is not None:
             validate_subprotocols(subprotocols)
 
@@ -767,10 +796,10 @@ class serve:
 
         loop = asyncio.get_running_loop()
         if kwargs.pop("unix", False):
-            self._create_server = loop.create_unix_server(factory, **kwargs)
+            self.create_server = loop.create_unix_server(factory, **kwargs)
         else:
             # mypy cannot tell that kwargs must provide sock when port is None.
-            self._create_server = loop.create_server(factory, host, port, **kwargs)  # type: ignore[arg-type]
+            self.create_server = loop.create_server(factory, host, port, **kwargs)  # type: ignore[arg-type]
 
     # async with serve(...) as ...: ...
 
@@ -793,7 +822,7 @@ class serve:
         return self.__await_impl__().__await__()
 
     async def __await_impl__(self) -> Server:
-        server = await self._create_server
+        server = await self.create_server
         self.server.wrap(server)
         return self.server
 
@@ -822,3 +851,123 @@ def unix_serve(
 
     """
     return serve(handler, unix=True, path=path, **kwargs)
+
+
+def is_credentials(credentials: Any) -> bool:
+    try:
+        username, password = credentials
+    except (TypeError, ValueError):
+        return False
+    else:
+        return isinstance(username, str) and isinstance(password, str)
+
+
+def basic_auth(
+    realm: str = "",
+    credentials: tuple[str, str] | Iterable[tuple[str, str]] | None = None,
+    check_credentials: Callable[[str, str], Awaitable[bool] | bool] | None = None,
+) -> Callable[[ServerConnection, Request], Awaitable[Response | None]]:
+    """
+    Factory for ``process_request`` to enforce HTTP Basic Authentication.
+
+    :func:`basic_auth` is designed to integrate with :func:`serve` as follows::
+
+        from websockets.asyncio.server import basic_auth, serve
+
+        async with serve(
+            ...,
+            process_request=basic_auth(
+                realm="my dev server",
+                credentials=("hello", "iloveyou"),
+            ),
+        ):
+
+    If authentication succeeds, the connection's ``username`` attribute is set.
+    If it fails, the server responds with an HTTP 401 Unauthorized status.
+
+    One of ``credentials`` or ``check_credentials`` must be provided; not both.
+
+    Args:
+        realm: Scope of protection. It should contain only ASCII characters
+            because the encoding of non-ASCII characters is undefined. Refer to
+            section 2.2 of :rfc:`7235` for details.
+        credentials: Hard coded authorized credentials. It can be a
+            ``(username, password)`` pair or a list of such pairs.
+        check_credentials: Function or coroutine that verifies credentials.
+            It receives ``username`` and ``password`` arguments and returns
+            whether they're valid.
+    Raises:
+        TypeError: If ``credentials`` or ``check_credentials`` is wrong.
+
+    """
+    if (credentials is None) == (check_credentials is None):
+        raise TypeError("provide either credentials or check_credentials")
+
+    if credentials is not None:
+        if is_credentials(credentials):
+            credentials_list = [cast(Tuple[str, str], credentials)]
+        elif isinstance(credentials, Iterable):
+            credentials_list = list(cast(Iterable[Tuple[str, str]], credentials))
+            if not all(is_credentials(item) for item in credentials_list):
+                raise TypeError(f"invalid credentials argument: {credentials}")
+        else:
+            raise TypeError(f"invalid credentials argument: {credentials}")
+
+        credentials_dict = dict(credentials_list)
+
+        def check_credentials(username: str, password: str) -> bool:
+            try:
+                expected_password = credentials_dict[username]
+            except KeyError:
+                return False
+            return hmac.compare_digest(expected_password, password)
+
+    assert check_credentials is not None  # help mypy
+
+    async def process_request(
+        connection: ServerConnection,
+        request: Request,
+    ) -> Response | None:
+        """
+        Perform HTTP Basic Authentication.
+
+        If it succeeds, set the connection's ``username`` attribute and return
+        :obj:`None`. If it fails, return an HTTP 401 Unauthorized responss.
+
+        """
+        try:
+            authorization = request.headers["Authorization"]
+        except KeyError:
+            response = connection.respond(
+                http.HTTPStatus.UNAUTHORIZED,
+                "Missing credentials\n",
+            )
+            response.headers["WWW-Authenticate"] = build_www_authenticate_basic(realm)
+            return response
+
+        try:
+            username, password = parse_authorization_basic(authorization)
+        except InvalidHeader:
+            response = connection.respond(
+                http.HTTPStatus.UNAUTHORIZED,
+                "Unsupported credentials\n",
+            )
+            response.headers["WWW-Authenticate"] = build_www_authenticate_basic(realm)
+            return response
+
+        valid_credentials = check_credentials(username, password)
+        if isinstance(valid_credentials, Awaitable):
+            valid_credentials = await valid_credentials
+
+        if not valid_credentials:
+            response = connection.respond(
+                http.HTTPStatus.UNAUTHORIZED,
+                "Invalid credentials\n",
+            )
+            response.headers["WWW-Authenticate"] = build_www_authenticate_basic(realm)
+            return response
+
+        connection.username = username
+        return None
+
+    return process_request

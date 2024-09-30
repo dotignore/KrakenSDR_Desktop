@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+import os
 import random
 import urllib.parse
 import warnings
@@ -19,12 +20,9 @@ from typing import (
 from ..asyncio.compatibility import asyncio_timeout
 from ..datastructures import Headers, HeadersLike
 from ..exceptions import (
-    InvalidHandshake,
     InvalidHeader,
-    InvalidMessage,
-    InvalidStatusCode,
+    InvalidHeaderValue,
     NegotiationError,
-    RedirectHandshake,
     SecurityError,
 )
 from ..extensions import ClientExtensionFactory, Extension
@@ -41,6 +39,7 @@ from ..headers import (
 from ..http11 import USER_AGENT
 from ..typing import ExtensionHeader, LoggerLike, Origin, Subprotocol
 from ..uri import WebSocketURI, parse_uri
+from .exceptions import InvalidMessage, InvalidStatusCode, RedirectHandshake
 from .handshake import build_request, check_response
 from .http import read_response
 from .protocol import WebSocketCommonProtocol
@@ -182,7 +181,7 @@ class WebSocketClientProtocol(WebSocketCommonProtocol):
 
         if header_values:
             if available_extensions is None:
-                raise InvalidHandshake("no extensions supported")
+                raise NegotiationError("no extensions supported")
 
             parsed_header_values: list[ExtensionHeader] = sum(
                 [parse_extension(header_value) for header_value in header_values], []
@@ -236,15 +235,17 @@ class WebSocketClientProtocol(WebSocketCommonProtocol):
 
         if header_values:
             if available_subprotocols is None:
-                raise InvalidHandshake("no subprotocols supported")
+                raise NegotiationError("no subprotocols supported")
 
             parsed_header_values: Sequence[Subprotocol] = sum(
                 [parse_subprotocol(header_value) for header_value in header_values], []
             )
 
             if len(parsed_header_values) > 1:
-                subprotocols = ", ".join(parsed_header_values)
-                raise InvalidHandshake(f"multiple subprotocols: {subprotocols}")
+                raise InvalidHeaderValue(
+                    "Sec-WebSocket-Protocol",
+                    f"multiple values: {', '.join(parsed_header_values)}",
+                )
 
             subprotocol = parsed_header_values[0]
 
@@ -417,7 +418,7 @@ class Connect:
 
     """
 
-    MAX_REDIRECTS_ALLOWED = 10
+    MAX_REDIRECTS_ALLOWED = int(os.environ.get("WEBSOCKETS_MAX_REDIRECTS", "10"))
 
     def __init__(
         self,
@@ -591,13 +592,13 @@ class Connect:
 
     # async for ... in connect(...):
 
-    BACKOFF_MIN = 1.92
-    BACKOFF_MAX = 60.0
-    BACKOFF_FACTOR = 1.618
-    BACKOFF_INITIAL = 5
+    BACKOFF_INITIAL = float(os.environ.get("WEBSOCKETS_BACKOFF_INITIAL_DELAY", "5"))
+    BACKOFF_MIN = float(os.environ.get("WEBSOCKETS_BACKOFF_MIN_DELAY", "3.1"))
+    BACKOFF_MAX = float(os.environ.get("WEBSOCKETS_BACKOFF_MAX_DELAY", "90.0"))
+    BACKOFF_FACTOR = float(os.environ.get("WEBSOCKETS_BACKOFF_FACTOR", "1.618"))
 
     async def __aiter__(self) -> AsyncIterator[WebSocketClientProtocol]:
-        backoff_delay = self.BACKOFF_MIN
+        backoff_delay = self.BACKOFF_MIN / self.BACKOFF_FACTOR
         while True:
             try:
                 async with self as protocol:

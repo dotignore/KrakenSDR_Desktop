@@ -24,10 +24,8 @@ from typing import (
 from ..asyncio.compatibility import asyncio_timeout
 from ..datastructures import Headers, HeadersLike, MultipleValuesError
 from ..exceptions import (
-    AbortHandshake,
     InvalidHandshake,
     InvalidHeader,
-    InvalidMessage,
     InvalidOrigin,
     InvalidUpgrade,
     NegotiationError,
@@ -43,6 +41,7 @@ from ..headers import (
 from ..http11 import SERVER
 from ..protocol import State
 from ..typing import ExtensionHeader, LoggerLike, Origin, StatusLike, Subprotocol
+from .exceptions import AbortHandshake, InvalidMessage
 from .handshake import build_response, check_request
 from .http import read_request
 from .protocol import WebSocketCommonProtocol, broadcast
@@ -101,9 +100,10 @@ class WebSocketServerProtocol(WebSocketCommonProtocol):
 
     def __init__(
         self,
+        # The version that accepts the path in the second argument is deprecated.
         ws_handler: (
             Callable[[WebSocketServerProtocol], Awaitable[Any]]
-            | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]  # deprecated
+            | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]
         ),
         ws_server: WebSocketServer,
         *,
@@ -398,7 +398,7 @@ class WebSocketServerProtocol(WebSocketCommonProtocol):
         try:
             origin = headers.get("Origin")
         except MultipleValuesError as exc:
-            raise InvalidHeader("Origin", "more than one Origin header found") from exc
+            raise InvalidHeader("Origin", "multiple values") from exc
         if origin is not None:
             origin = cast(Origin, origin)
         if origins is not None:
@@ -984,9 +984,10 @@ class Serve:
 
     def __init__(
         self,
+        # The version that accepts the path in the second argument is deprecated.
         ws_handler: (
             Callable[[WebSocketServerProtocol], Awaitable[Any]]
-            | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]  # deprecated
+            | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]
         ),
         host: str | Sequence[str] | None = None,
         port: int | None = None,
@@ -1141,9 +1142,10 @@ serve = Serve
 
 
 def unix_serve(
+    # The version that accepts the path in the second argument is deprecated.
     ws_handler: (
         Callable[[WebSocketServerProtocol], Awaitable[Any]]
-        | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]  # deprecated
+        | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]
     ),
     path: str | None = None,
     **kwargs: Any,
@@ -1170,7 +1172,7 @@ def remove_path_argument(
     ws_handler: (
         Callable[[WebSocketServerProtocol], Awaitable[Any]]
         | Callable[[WebSocketServerProtocol, str], Awaitable[Any]]
-    )
+    ),
 ) -> Callable[[WebSocketServerProtocol], Awaitable[Any]]:
     try:
         inspect.signature(ws_handler).bind(None)

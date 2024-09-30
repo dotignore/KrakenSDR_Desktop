@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        #map {
+            height: 94%;
+        }
+        #bearingControls {
+            display: flex; /* Flexbox layout */
+            margin: 20px;
+        }
+        #bearingControls div {
+            margin-right: 20px; /* Space between controls */
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div id="bearingControls">
+        <div id="bearingControl1">
+            <label for="bearingInput1">KrakenSDR 1: ∠°</label>
+            <input type="number" id="bearingInput1" min="0" max="360" value="0">
+            <button id="submitBearing1">Apply</button>
+        </div>
+
+        <div id="bearingControl2">
+            <label for="bearingInput2">KrakenSDR 2: ∠°</label>
+            <input type="number" id="bearingInput2" min="0" max="360" value="0">
+            <button id="submitBearing2">Apply</button>
+        </div>
+
+        <div id="frequencyControl">
+            <label for="frequencyInput">Set Frequency (MHz):</label>
+            <input type="number" id="frequencyInput" min="0" max="500" step="0.1" value="{{ frequency_value }}">
+            <button id="submitFrequency">Apply Frequency</button>
+        </div>
+        
+    </div>
+    
+
+    <script>
+        var intersections = []; // Array to store intersection points
+        var intersectionMarkers = []; // Array to store markers on the map
+
+        // Function to calculate intersection point of two lines
+        function calculateIntersection(line1, line2) {
+            var x1 = line1[0].lng, y1 = line1[0].lat,
+                x2 = line1[1].lng, y2 = line1[1].lat,
+                x3 = line2[0].lng, y3 = line2[0].lat,
+                x4 = line2[1].lng, y4 = line2[1].lat;
+
+            var denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (denom === 0) {
+                return null; // Lines are parallel or coincident
+            }
+
+            var intersectX = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
+            var intersectY = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
+
+            // Check if the intersection point is within the segments
+            if ((intersectX >= Math.min(x1, x2) && intersectX <= Math.max(x1, x2)) &&
+                (intersectX >= Math.min(x3, x4) && intersectX <= Math.max(x3, x4)) &&
+                (intersectY >= Math.min(y1, y2) && intersectY <= Math.max(y1, y2)) &&
+                (intersectY >= Math.min(y3, y4) && intersectY <= Math.max(y3, y4))) {
+                return [intersectY, intersectX]; // Return as [lat, lng]
+            }
+
+            return null; // No valid intersection
+        }
+
+        // Load map data for KrakenSDR 1 and KrakenSDR 2
+        function loadMapData() {
+            $.getJSON('/get_map_data', function(data) {
+                var map = L.map('map').setView([data.krakensdr_1.start_lat, data.krakensdr_1.start_lon], 13);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19
+                }).addTo(map);
+
+                var line_1 = null;  // Line for KrakenSDR 1
+                var line_2 = null;  // Line for KrakenSDR 2
+
+                // KrakenSDR 1 marker
+                var marker_1 = L.marker([data.krakensdr_1.start_lat, data.krakensdr_1.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 1").openPopup();
+
+                // KrakenSDR 2 marker
+                var marker_2 = L.marker([data.krakensdr_2.start_lat, data.krakensdr_2.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 2").openPopup();
+
+                // Function to load bearing values for KrakenSDR 1 and KrakenSDR 2
+                function loadBearingValues() {
+                    // Load for KrakenSDR 1
+                    $.getJSON('/get_bearing_value/1', function(data) {
+                        if (data.bearing_deg !== undefined) {
+                            $('#bearingValue1').text(data.bearing_deg);
+                            $('#bearingInput1').val(data.bearing_deg);
+                        }
+                    });
+
+                    // Load for KrakenSDR 2
+                    $.getJSON('/get_bearing_value/2', function(data) {
+                        if (data.bearing_deg !== undefined) {
+                            $('#bearingValue2').text(data.bearing_deg);
+                            $('#bearingInput2').val(data.bearing_deg);
+                        }
+                    });
+                }
+
+                // Load bearing values when the page is ready
+                $(document).ready(function() {
+                    loadMapData();
+                    loadBearingValues();
+                });
+
+                // Function to update the lines on the map
+                function updateLines() {
+                    $.getJSON('/get_map_data', function(data) {
+                        var startLatLng_1 = new L.LatLng(data.krakensdr_1.start_lat, data.krakensdr_1.start_lon);
+                        var endLatLng_1 = new L.LatLng(data.krakensdr_1.end_lat, data.krakensdr_1.end_lon);
+
+                        var startLatLng_2 = new L.LatLng(data.krakensdr_2.start_lat, data.krakensdr_2.start_lon);
+                        var endLatLng_2 = new L.LatLng(data.krakensdr_2.end_lat, data.krakensdr_2.end_lon);
+
+                        // Remove existing lines if they exist
+                        if (line_1) {
+                            map.removeLayer(line_1);
+                        }
+                        if (line_2) {
+                            map.removeLayer(line_2);
+                        }
+
+                        // Add new KrakenSDR 1 line
+                        line_1 = L.polyline([startLatLng_1, endLatLng_1], {color: 'gray'}).addTo(map);
+
+                        // Add new KrakenSDR 2 line
+                        line_2 = L.polyline([startLatLng_2, endLatLng_2], {color: 'blue'}).addTo(map);
+
+                        // Calculate intersection point
+                        var intersection = calculateIntersection([startLatLng_1, endLatLng_1], [startLatLng_2, endLatLng_2]);
+                        if (intersection) {
+                            intersections.push(intersection);
+
+                            // Limit to last 10 intersections
+                            if (intersections.length > 10) {
+                                intersections.shift();
+                            }
+
+                            // Clear old markers
+                            intersectionMarkers.forEach(function(marker) {
+                                map.removeLayer(marker);
+                            });
+                            intersectionMarkers = [];
+
+                            // Add new intersection markers
+                            intersections.forEach(function(point) {
+                            var crossIcon = L.divIcon({
+                                className: 'cross-marker',  // Назначаем класс для маркера
+                                iconSize: [20, 20],         // Устанавливаем размер иконки
+                                html: `
+                                    <div style="position: relative; width: 20px; height: 20px;">
+                                        <div style="position: absolute; width: 2px; height: 20px; background-color: red; left: 9px;"></div>
+                                        <div style="position: absolute; width: 20px; height: 2px; background-color: red; top: 9px;"></div>
+                                    </div>`
+                            });
+                            
+                            // Добавляем маркер на карту
+                            var marker = L.marker(point, { icon: crossIcon }).addTo(map).bindPopup('Intersection Point');
+                            intersectionMarkers.push(marker);
+                        });
+                        }
+                    });
+                }
+
+                // Update the lines every 5 seconds
+                setInterval(updateLines, 5000);
+
+                // Event handler for KrakenSDR 1 marker drag event
+                marker_1.on('dragend', function(e) {
+                    var latLng_1 = marker_1.getLatLng();
+                    var newLat_1 = latLng_1.lat;
+                    var newLon_1 = latLng_1.lng;
+
+                    // Update coordinates for KrakenSDR 1
+                    $.ajax({
+                        url: '/update_coordinates',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            krakensdr: 'krakensdr_1',
+                            latitude: newLat_1,
+                            longitude: newLon_1
+                        }),
+                        success: function(response) {
+                            console.log('Coordinates for KrakenSDR 1 successfully updated');
+                        },
+                        error: function(error) {
+                            console.log('Error updating coordinates for KrakenSDR 1:', error);
+                        }
+                    });
+                });
+
+                // Event handler for KrakenSDR 2 marker drag event
+                marker_2.on('dragend', function(e) {
+                    var latLng_2 = marker_2.getLatLng();
+                    var newLat_2 = latLng_2.lat;
+                    var newLon_2 = latLng_2.lng;
+
+                    // Update coordinates for KrakenSDR 2
+                    $.ajax({
+                        url: '/update_coordinates',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            krakensdr: 'krakensdr_2',
+                            latitude: newLat_2,
+                            longitude: newLon_2
+                        }),
+                        success: function(response) {
+                            console.log('Coordinates for KrakenSDR 2 successfully updated');
+                        },
+                        error: function(error) {
+                            console.log('Error updating coordinates for KrakenSDR 2:', error);
+                        }
+                    });
+                });
+            });
+        }
+
+        // Load the map data when the page is ready
+        $(document).ready(function() {
+            loadMapData();
+        });
+
+
+        // Update bearing value for KrakenSDR 1
+        $('#submitBearing1').on('click', function() {
+            var bearingValue1 = $('#bearingInput1').val();
+            $.ajax({
+                url: '/update_bearing/1',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ bearing_deg: bearingValue1 }),
+                success: function(response) {
+                    console.log('Bearing for KrakenSDR 1 successfully updated');
+                    $('#bearingValue1').text(bearingValue1);
+                },
+                error: function(error) {
+                    console.log('Error updating bearing for KrakenSDR 1:', error);
+                }
+            });
+        });
+
+        // Update bearing value for KrakenSDR 2
+        $('#submitBearing2').on('click', function() {
+            var bearingValue2 = $('#bearingInput2').val();
+            $.ajax({
+                url: '/update_bearing/2',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ bearing_deg: bearingValue2 }),
+                success: function(response) {
+                    console.log('Bearing for KrakenSDR 2 successfully updated');
+                    $('#bearingValue2').text(bearingValue2);
+                },
+                error: function(error) {
+                    console.log('Error updating bearing for KrakenSDR 2:', error);
+                }
+            });
+        });
+
+        
+
+
+
+
+
+
+
+            // Update frequency in freq_rqst_1.json and trigger the WebSocket request
+    $('#submitFrequency').on('click', function() {
+        var frequencyValue = $('#frequencyInput').val();
+
+        // Send an AJAX request to update freq_rqst_1.json with the new frequency value
+        $.ajax({
+            url: '/update_frequency',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ value: frequencyValue }),
+            success: function(response) {
+                console.log('Frequency successfully updated in freq_rqst_1.json');
+
+                // Trigger the WebSocket request after updating the frequency
+                sendWebSocketRequest(frequencyValue);
+            },
+            error: function(error) {
+                console.log('Error updating frequency:', error);
+            }
+        });
+    });
+
+    // Function to send a WebSocket request with the updated frequency value
+    function sendWebSocketRequest(frequencyValue) {
+        var wsUrl = "ws://10.10.1.93:8080/_push";
+        var message = {
+            id: 266,
+            url: "_dash-update-component",
+            data: {
+                output: "_none.24",
+                outputs: {
+                    id: "_none",
+                    property: "24"
+                },
+                inputs: [
+                    {
+                        id: "btn-update_rx_param",
+                        property: "n_clicks",
+                        value: 2
+                    }
+                ],
+                changedPropIds: [
+                    "btn-update_rx_param.n_clicks"
+                ],
+                state: [
+                    {
+                        id: "daq_center_freq",
+                        property: "value",
+                        value: frequencyValue  // Use the input frequency
+                    },
+                    {
+                        id: "daq_rx_gain",
+                        property: "value",
+                        value: 15.7
+                    }
+                ]
+            }
+        };
+
+        // Send the WebSocket message
+        const ws = new WebSocket(wsUrl);
+        ws.onopen = function () {
+            ws.send(JSON.stringify(message));
+        };
+        ws.onmessage = function (event) {
+            console.log('WebSocket Response:', event.data);
+        };
+    }
+
+
+
+    
+
+    </script>
+</body>
+</html>

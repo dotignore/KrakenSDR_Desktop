@@ -1,0 +1,34 @@
+{
+    "id": 266,
+    "url": "_dash-update-component",
+    "data": {
+        "output": "_none.24",
+        "outputs": {
+            "id": "_none",
+            "property": "24"
+        },
+        "inputs": [
+            {
+                "id": "btn-update_rx_param",
+                "property": "n_clicks",
+                "value": 2
+            }
+        ],
+        "changedPropIds": [
+            "btn-update_rx_param.n_clicks"
+        ],
+        "state": [
+            {
+                "id": "daq_center_freq",
+                "property": "value",
+                "value": 100
+            },
+            {
+                "id": "daq_rx_gain",
+                "property": "value",
+                "value": 15.7
+            }
+        ]
+    },
+    "frequency": "96"
+}

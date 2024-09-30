@@ -1,3 +1,30 @@
+# GNU GENERAL PUBLIC LICENSE
+# Version 3, 29 June 2007
+#
+# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com
+# This is the source code for KrakenSDR direction.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+# rm -rf venv
+# python3 -m venv venv
+#
+# pip3 install -r requirements.txt
+
+
+
 from flask import Flask, render_template, jsonify, request
 import json
 import math
@@ -5,6 +32,8 @@ import webbrowser
 from threading import Timer, Thread
 import asyncio
 import websockets
+import subprocess
+
 
 app = Flask(__name__)
 
@@ -12,9 +41,15 @@ app = Flask(__name__)
 x_for_max_y_1 = None
 x_for_max_y_2 = None
 
-# WebSocket URLs for krakensdr_1 and krakensdr_2
-ws_url_1 = "ws://10.10.1.93:8080/_push"
-ws_url_2 = "ws://10.10.1.93:8080/_push"
+# WebSocket URLs for krakensdr_1 and krakensdr_2 are now loaded from the JSON files
+
+# Load data from each JSON file
+with open('data_krkn_1.json') as f1, open('data_krkn_2.json') as f2:
+    data_krakensdr_1 = json.load(f1)
+    data_krakensdr_2 = json.load(f2)
+
+ws_url_1 = data_krakensdr_1['krakensdr_1']['ws_url']
+ws_url_2 = data_krakensdr_2['krakensdr_2']['ws_url']
 
 # Function to calculate the endpoint at a certain distance
 def calculate_new_point(lat, lon, distance_km, bearing_deg):
@@ -38,7 +73,26 @@ def calculate_new_point(lat, lon, distance_km, bearing_deg):
 # Route for the main page
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        # Открываем и читаем freq_rqst_1.json
+        with open('freq_rqst_1.json', 'r') as f:
+            json_data = json.load(f)
+            # Ищем значение частоты
+            frequency_value = None
+            for state in json_data['data']['state']:
+                if state['id'] == 'daq_center_freq':
+                    frequency_value = state['value']
+                    break
+        
+        if frequency_value is None:
+            frequency_value = 0  # Если значение не найдено, используем значение по умолчанию
+
+        return render_template('index.html', frequency_value=frequency_value)
+
+    except FileNotFoundError:
+        return render_template('index.html', frequency_value=0)  # Значение по умолчанию, если файл не найден
+    except Exception as e:
+        return f"An error occurred: {str(e)}", 500
 
 # Route to get map data
 @app.route('/get_map_data')
@@ -132,6 +186,130 @@ def update_coordinates():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Новый маршрут для обновления bearing_deg для krakensdr_1 или krakensdr_2
+@app.route('/update_bearing/<int:kraken_id>', methods=['POST'])
+def update_bearing(kraken_id):
+    data = request.json  # Получаем данные из запроса
+    new_bearing_deg = data.get('bearing_deg')
+
+    if kraken_id not in [1, 2]:
+        return jsonify({'error': 'Invalid KrakenSDR identifier'}), 400
+
+    # Выбираем правильный файл для обновления
+    file_name = 'data_krkn_1.json' if kraken_id == 1 else 'data_krkn_2.json'
+    krakensdr_key = 'krakensdr_1' if kraken_id == 1 else 'krakensdr_2'
+
+    try:
+        with open(file_name, 'r+') as f:
+            json_data = json.load(f)
+            
+            # Обновляем значение bearing_deg
+            json_data[krakensdr_key]['bearing_deg'] = new_bearing_deg
+            
+            f.seek(0)
+            json.dump(json_data, f, indent=4)
+            f.truncate()
+
+        return jsonify({'status': 'success'})
+
+    except FileNotFoundError:
+        return jsonify({'error': f'{file_name} not found'}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Новый маршрут для обновления значения частоты
+@app.route('/update_frequency', methods=['POST'])
+def update_frequency():
+    data = request.json  # Получаем данные из запроса
+    new_frequency_value = data.get('value')
+
+    # Вы можете настроить путь к файлу, который нужно обновить
+    file_name = 'freq_rqst_1.json'
+
+    try:
+        with open(file_name, 'r+') as f:
+            json_data = json.load(f)
+            
+            # Обновляем значение частоты
+            json_data['frequency'] = new_frequency_value
+            
+            f.seek(0)
+            json.dump(json_data, f, indent=4)
+            f.truncate()
+
+        return jsonify({'status': 'success'})
+
+    except FileNotFoundError:
+        return jsonify({'error': f'{file_name} not found'}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Route to get bearing value for KrakenSDR 1 or 2
+@app.route('/get_bearing_value/<int:kraken_id>', methods=['GET'])
+def get_bearing_value(kraken_id):
+    if kraken_id not in [1, 2]:
+        return jsonify({'error': 'Invalid KrakenSDR identifier'}), 400
+
+    # Определение имени файла JSON
+    file_name = 'data_krkn_1.json' if kraken_id == 1 else 'data_krkn_2.json'
+    krakensdr_key = 'krakensdr_1' if kraken_id == 1 else 'krakensdr_2'
+
+    try:
+        with open(file_name, 'r') as f:
+            json_data = json.load(f)
+            bearing_deg = json_data[krakensdr_key].get('bearing_deg')
+            return jsonify({'bearing_deg': bearing_deg})
+
+    except FileNotFoundError:
+        return jsonify({'error': f'{file_name} not found'}), 500
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Маршрут для обновления частоты и запуска скрипта
+@app.route('/update_frequency_and_run', methods=['POST'])
+def update_frequency_and_run():
+    data = request.json
+    new_frequency = data.get('frequency')
+
+    try:
+        # Обновляем значения в freq_rqst_1.json
+        with open('freq_rqst_1.json', 'r+') as f1:
+            json_data_1 = json.load(f1)
+            for state in json_data_1['data']['state']:
+                if state['id'] == 'daq_center_freq':
+                    state['value'] = new_frequency  # Обновляем значение частоты
+            f1.seek(0)
+            json.dump(json_data_1, f1, indent=4)
+            f1.truncate()
+
+        # Обновляем значения в freq_rqst_2.json
+        with open('freq_rqst_2.json', 'r+') as f2:
+            json_data_2 = json.load(f2)
+            for state in json_data_2['data']['state']:
+                if state['id'] == 'daq_center_freq':
+                    state['value'] = new_frequency  # Обновляем значение частоты
+            f2.seek(0)
+            json.dump(json_data_2, f2, indent=4)
+            f2.truncate()
+
+        # Выполняем change_freq.py
+        result = subprocess.run(['python3', 'change_freq.py'], capture_output=True, text=True)
+        
+        return jsonify({'status': 'success', 'script_output': result.stdout})
+
+    except FileNotFoundError as e:
+        return jsonify({'error': f'File not found: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Function to start update_data_periodically.py
+def run_update_data_periodically():
+    subprocess.run(['python3', 'update_data_periodically.py'])
 
 # Function to update JSON for each KrakenSDR
 def update_json(x_values, y_values, krakensdr):

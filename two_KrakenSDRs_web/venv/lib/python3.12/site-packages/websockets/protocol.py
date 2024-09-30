@@ -378,9 +378,11 @@ class Protocol:
         else:
             close = Close(code, reason)
             data = close.serialize()
-        # send_frame() guarantees that self.state is OPEN at this point.
         # 7.1.3. The WebSocket Closing Handshake is Started
         self.send_frame(Frame(OP_CLOSE, data))
+        # Since the state is OPEN, no close frame was received yet.
+        # As a consequence, self.close_rcvd_then_sent remains None.
+        assert self.close_rcvd is None
         self.close_sent = close
         self.state = CLOSING
 
@@ -441,6 +443,12 @@ class Protocol:
                 data = close.serialize()
                 self.send_frame(Frame(OP_CLOSE, data))
                 self.close_sent = close
+                # If recv_messages() raised an exception upon receiving a close
+                # frame but before echoing it, then close_rcvd is not None even
+                # though the state is OPEN. This happens when the connection is
+                # closed while receiving a fragmented message.
+                if self.close_rcvd is not None:
+                    self.close_rcvd_then_sent = True
                 self.state = CLOSING
 
         # When failing the connection, a server closes the TCP connection
@@ -602,18 +610,18 @@ class Protocol:
         - after sending a close frame, during an abnormal closure (7.1.7).
 
         """
-        # The server close the TCP connection in the same circumstances where
-        # discard() replaces parse(). The client closes the connection later,
-        # after the server closes the connection or a timeout elapses.
-        # (The latter case cannot be handled in this Sans-I/O layer.)
-        assert (self.side is SERVER) == (self.eof_sent)
+        # After the opening handshake completes, the server closes the TCP
+        # connection in the same circumstances where discard() replaces parse().
+        # The client closes it when it receives EOF from the server or times
+        # out. (The latter case cannot be handled in this Sans-I/O layer.)
+        assert (self.state == CONNECTING or self.side is SERVER) == (self.eof_sent)
         while not (yield from self.reader.at_eof()):
             self.reader.discard()
         if self.debug:
             self.logger.debug("< EOF")
         # A server closes the TCP connection immediately, while a client
         # waits for the server to close the TCP connection.
-        if self.side is CLIENT:
+        if self.state != CONNECTING and self.side is CLIENT:
             self.send_eof()
         self.state = CLOSED
         # If discard() completes normally, execution ends here.

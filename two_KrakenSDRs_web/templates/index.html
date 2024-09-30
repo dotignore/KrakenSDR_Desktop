@@ -15,19 +15,39 @@
         #map {
             height: 94%;
         }
-        #bearingControl {
+        #bearingControls {
+            display: flex; /* Flexbox layout */
             margin: 20px;
+        }
+        #bearingControls div {
+            margin-right: 20px; /* Space between controls */
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div id="bearingControl">
-        <label for="bearingInput">KrakenSDR 1: </label>
-        <input type="number" id="bearingInput" min="0" max="360" value="0">
-        <button id="submitBearing">Apply</button>
-        <span id="bearingValue">0</span>°
+    
+    <div id="bearingControls">
+        <div id="bearingControl1">
+            <label for="bearingInput1">KrakenSDR 1: ∠°</label>
+            <input type="number" id="bearingInput1" min="0" max="360" value="0">
+            <button id="submitBearing1">Apply</button>
+        </div>
+
+        <div id="bearingControl2">
+            <label for="bearingInput2">KrakenSDR 2: ∠°</label>
+            <input type="number" id="bearingInput2" min="0" max="360" value="0">
+            <button id="submitBearing2">Apply</button>
+        </div>
+
+        <div id="frequencyControl">
+            <label for="frequencyInput">Set Frequency (MHz):</label>
+            <input type="number" id="frequencyInput" min="0" max="500" step="0.1" value="{{ frequency_value }}">
+            <button id="submitFrequency">Apply Frequency</button>
+        </div>
+        
     </div>
+    
 
     <script>
         var intersections = []; // Array to store intersection points
@@ -76,6 +96,31 @@
 
                 // KrakenSDR 2 marker
                 var marker_2 = L.marker([data.krakensdr_2.start_lat, data.krakensdr_2.start_lon], {draggable: true}).addTo(map).bindPopup("KrakenSDR 2").openPopup();
+
+                // Function to load bearing values for KrakenSDR 1 and KrakenSDR 2
+                function loadBearingValues() {
+                    // Load for KrakenSDR 1
+                    $.getJSON('/get_bearing_value/1', function(data) {
+                        if (data.bearing_deg !== undefined) {
+                            $('#bearingValue1').text(data.bearing_deg);
+                            $('#bearingInput1').val(data.bearing_deg);
+                        }
+                    });
+
+                    // Load for KrakenSDR 2
+                    $.getJSON('/get_bearing_value/2', function(data) {
+                        if (data.bearing_deg !== undefined) {
+                            $('#bearingValue2').text(data.bearing_deg);
+                            $('#bearingInput2').val(data.bearing_deg);
+                        }
+                    });
+                }
+
+                // Load bearing values when the page is ready
+                $(document).ready(function() {
+                    loadMapData();
+                    loadBearingValues();
+                });
 
                 // Function to update the lines on the map
                 function updateLines() {
@@ -196,25 +241,122 @@
             loadMapData();
         });
 
-        // Handler for KrakenSDR 1 bearing change
-        $('#submitBearing').on('click', function() {
-            var bearingValue = $('#bearingInput').val();
-            $('#bearingValue').text(bearingValue);
 
-            // Update bearing for KrakenSDR 1
+        // Update bearing value for KrakenSDR 1
+        $('#submitBearing1').on('click', function() {
+            var bearingValue1 = parseInt($('#bearingInput1').val(), 10); // Преобразуем значение в число
             $.ajax({
-                url: '/update_bearing',
+                url: '/update_bearing/1',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({bearing_deg: bearingValue}),
+                data: JSON.stringify({ bearing_deg: bearingValue1 }), // Передаем как число
                 success: function(response) {
-                    console.log('Bearing successfully updated');
+                    console.log('Bearing for KrakenSDR 1 successfully updated');
+                    $('#bearingValue1').text(bearingValue1);
                 },
                 error: function(error) {
-                    console.log('Error updating bearing:', error);
+                    console.log('Error updating bearing for KrakenSDR 1:', error);
                 }
             });
         });
+
+        // Update bearing value for KrakenSDR 2
+        $('#submitBearing2').on('click', function() {
+            var bearingValue2 = parseInt($('#bearingInput2').val(), 10); // Преобразуем значение в число
+            $.ajax({
+                url: '/update_bearing/2',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ bearing_deg: bearingValue2 }), // Передаем как число
+                success: function(response) {
+                    console.log('Bearing for KrakenSDR 2 successfully updated');
+                    $('#bearingValue2').text(bearingValue2);
+                },
+                error: function(error) {
+                    console.log('Error updating bearing for KrakenSDR 2:', error);
+                }
+            });
+        });
+
+        
+
+
+
+
+
+
+
+            // Update frequency in freq_rqst_1.json and trigger the WebSocket request
+            $('#submitFrequency').on('click', function() {
+                var frequencyValue = parseFloat($('#frequencyInput').val()); // Получаем значение частоты как число
+
+                // Отправляем запрос на сервер для обновления JSON-файлов и запуска скрипта
+                $.ajax({
+                    url: '/update_frequency_and_run',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ frequency: frequencyValue }),
+                    success: function(response) {
+                        console.log('Frequency successfully updated and script executed:', response);
+                    },
+                    error: function(error) {
+                        console.log('Error updating frequency or executing script:', error);
+                    }
+                });
+            });
+
+
+    // Function to send a WebSocket request with the updated frequency value
+    function sendWebSocketRequest(frequencyValue) {
+        var wsUrl = "ws://10.10.1.93:8080/_push";
+        var message = {
+            id: 266,
+            url: "_dash-update-component",
+            data: {
+                output: "_none.24",
+                outputs: {
+                    id: "_none",
+                    property: "24"
+                },
+                inputs: [
+                    {
+                        id: "btn-update_rx_param",
+                        property: "n_clicks",
+                        value: 2
+                    }
+                ],
+                changedPropIds: [
+                    "btn-update_rx_param.n_clicks"
+                ],
+                state: [
+                    {
+                        id: "daq_center_freq",
+                        property: "value",
+                        value: frequencyValue  // Use the input frequency
+                    },
+                    {
+                        id: "daq_rx_gain",
+                        property: "value",
+                        value: 15.7
+                    }
+                ]
+            }
+        };
+
+        // Send the WebSocket message
+        const ws = new WebSocket(wsUrl);
+        ws.onopen = function () {
+            ws.send(JSON.stringify(message));
+        };
+        ws.onmessage = function (event) {
+            console.log('WebSocket Response:', event.data);
+        };
+    }
+
+
+
+    
+
     </script>
 </body>
 </html>

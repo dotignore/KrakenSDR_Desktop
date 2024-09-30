@@ -1,0 +1,14 @@
+{
+    "angles_krakensdr": {
+        "max_y": 0.0,
+        "x_for_max_y": 354.0
+    },
+    "angles_krakensdr_2": {
+        "max_y": 0.0,
+        "x_for_max_y": 1.0
+    },
+    "angles_krakensdr_1": {
+        "max_y": 0.0,
+        "x_for_max_y": 1.0
+    }
+}

@@ -7,7 +7,8 @@ import sys
 import warnings
 from typing import Callable, Generator
 
-from . import datastructures, exceptions
+from .datastructures import Headers
+from .exceptions import SecurityError
 from .version import version as websockets_version
 
 
@@ -79,14 +80,14 @@ class Request:
     """
 
     path: str
-    headers: datastructures.Headers
+    headers: Headers
     # body isn't useful is the context of this library.
 
     _exception: Exception | None = None
 
     @property
     def exception(self) -> Exception | None:  # pragma: no cover
-        warnings.warn(
+        warnings.warn(  # deprecated in 10.3 - 2022-04-17
             "Request.exception is deprecated; "
             "use ServerProtocol.handshake_exc instead",
             DeprecationWarning,
@@ -134,14 +135,15 @@ class Request:
             raise EOFError("connection closed while reading HTTP request line") from exc
 
         try:
-            method, raw_path, version = request_line.split(b" ", 2)
+            method, raw_path, protocol = request_line.split(b" ", 2)
         except ValueError:  # not enough values to unpack (expected 3, got 1-2)
             raise ValueError(f"invalid HTTP request line: {d(request_line)}") from None
-
+        if protocol != b"HTTP/1.1":
+            raise ValueError(
+                f"unsupported protocol; expected HTTP/1.1: {d(request_line)}"
+            )
         if method != b"GET":
-            raise ValueError(f"unsupported HTTP method: {d(method)}")
-        if version != b"HTTP/1.1":
-            raise ValueError(f"unsupported HTTP version: {d(version)}")
+            raise ValueError(f"unsupported HTTP method; expected GET; got {d(method)}")
         path = raw_path.decode("ascii", "surrogateescape")
 
         headers = yield from parse_headers(read_line)
@@ -183,14 +185,14 @@ class Response:
 
     status_code: int
     reason_phrase: str
-    headers: datastructures.Headers
+    headers: Headers
     body: bytes | None = None
 
     _exception: Exception | None = None
 
     @property
     def exception(self) -> Exception | None:  # pragma: no cover
-        warnings.warn(
+        warnings.warn(  # deprecated in 10.3 - 2022-04-17
             "Response.exception is deprecated; "
             "use ClientProtocol.handshake_exc instead",
             DeprecationWarning,
@@ -235,23 +237,26 @@ class Response:
             raise EOFError("connection closed while reading HTTP status line") from exc
 
         try:
-            version, raw_status_code, raw_reason = status_line.split(b" ", 2)
+            protocol, raw_status_code, raw_reason = status_line.split(b" ", 2)
         except ValueError:  # not enough values to unpack (expected 3, got 1-2)
             raise ValueError(f"invalid HTTP status line: {d(status_line)}") from None
-
-        if version != b"HTTP/1.1":
-            raise ValueError(f"unsupported HTTP version: {d(version)}")
+        if protocol != b"HTTP/1.1":
+            raise ValueError(
+                f"unsupported protocol; expected HTTP/1.1: {d(status_line)}"
+            )
         try:
             status_code = int(raw_status_code)
         except ValueError:  # invalid literal for int() with base 10
             raise ValueError(
-                f"invalid HTTP status code: {d(raw_status_code)}"
+                f"invalid status code; expected integer; got {d(raw_status_code)}"
             ) from None
-        if not 100 <= status_code < 1000:
-            raise ValueError(f"unsupported HTTP status code: {d(raw_status_code)}")
+        if not 100 <= status_code < 600:
+            raise ValueError(
+                f"invalid status code; expected 100–599; got {d(raw_status_code)}"
+            )
         if not _value_re.fullmatch(raw_reason):
             raise ValueError(f"invalid HTTP reason phrase: {d(raw_reason)}")
-        reason = raw_reason.decode()
+        reason = raw_reason.decode("ascii", "surrogateescape")
 
         headers = yield from parse_headers(read_line)
 
@@ -280,13 +285,9 @@ class Response:
                 try:
                     body = yield from read_to_eof(MAX_BODY_SIZE)
                 except RuntimeError:
-                    raise exceptions.SecurityError(
-                        f"body too large: over {MAX_BODY_SIZE} bytes"
-                    )
+                    raise SecurityError(f"body too large: over {MAX_BODY_SIZE} bytes")
             elif content_length > MAX_BODY_SIZE:
-                raise exceptions.SecurityError(
-                    f"body too large: {content_length} bytes"
-                )
+                raise SecurityError(f"body too large: {content_length} bytes")
             else:
                 body = yield from read_exact(content_length)
 
@@ -308,7 +309,7 @@ class Response:
 
 def parse_headers(
     read_line: Callable[[int], Generator[None, None, bytes]],
-) -> Generator[None, None, datastructures.Headers]:
+) -> Generator[None, None, Headers]:
     """
     Parse HTTP headers.
 
@@ -328,7 +329,7 @@ def parse_headers(
 
     # We don't attempt to support obsolete line folding.
 
-    headers = datastructures.Headers()
+    headers = Headers()
     for _ in range(MAX_NUM_HEADERS + 1):
         try:
             line = yield from parse_line(read_line)
@@ -352,7 +353,7 @@ def parse_headers(
         headers[name] = value
 
     else:
-        raise exceptions.SecurityError("too many HTTP headers")
+        raise SecurityError("too many HTTP headers")
 
     return headers
 
@@ -377,7 +378,7 @@ def parse_line(
     try:
         line = yield from read_line(MAX_LINE_LENGTH)
     except RuntimeError:
-        raise exceptions.SecurityError("line too long")
+        raise SecurityError("line too long")
     # Not mandatory but safe - https://datatracker.ietf.org/doc/html/rfc7230#section-3.5
     if not line.endswith(b"\r\n"):
         raise EOFError("line without CRLF")

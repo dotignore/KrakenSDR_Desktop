@@ -14,7 +14,7 @@ __all__ = [
     "HeadersLike",
     "MultipleValuesError",
     # .exceptions
-    "AbortHandshake",
+    "ConcurrencyError",
     "ConnectionClosed",
     "ConnectionClosedError",
     "ConnectionClosedOK",
@@ -23,19 +23,16 @@ __all__ = [
     "InvalidHeader",
     "InvalidHeaderFormat",
     "InvalidHeaderValue",
-    "InvalidMessage",
     "InvalidOrigin",
     "InvalidParameterName",
     "InvalidParameterValue",
     "InvalidState",
     "InvalidStatus",
-    "InvalidStatusCode",
     "InvalidUpgrade",
     "InvalidURI",
     "NegotiationError",
     "PayloadTooBig",
     "ProtocolError",
-    "RedirectHandshake",
     "SecurityError",
     "WebSocketException",
     "WebSocketProtocolError",
@@ -46,6 +43,11 @@ __all__ = [
     "WebSocketClientProtocol",
     "connect",
     "unix_connect",
+    # .legacy.exceptions
+    "AbortHandshake",
+    "InvalidMessage",
+    "InvalidStatusCode",
+    "RedirectHandshake",
     # .legacy.protocol
     "WebSocketCommonProtocol",
     # .legacy.server
@@ -71,7 +73,7 @@ if typing.TYPE_CHECKING:
     from .client import ClientProtocol
     from .datastructures import Headers, HeadersLike, MultipleValuesError
     from .exceptions import (
-        AbortHandshake,
+        ConcurrencyError,
         ConnectionClosed,
         ConnectionClosedError,
         ConnectionClosedOK,
@@ -80,19 +82,16 @@ if typing.TYPE_CHECKING:
         InvalidHeader,
         InvalidHeaderFormat,
         InvalidHeaderValue,
-        InvalidMessage,
         InvalidOrigin,
         InvalidParameterName,
         InvalidParameterValue,
         InvalidState,
         InvalidStatus,
-        InvalidStatusCode,
         InvalidUpgrade,
         InvalidURI,
         NegotiationError,
         PayloadTooBig,
         ProtocolError,
-        RedirectHandshake,
         SecurityError,
         WebSocketException,
         WebSocketProtocolError,
@@ -102,6 +101,12 @@ if typing.TYPE_CHECKING:
         basic_auth_protocol_factory,
     )
     from .legacy.client import WebSocketClientProtocol, connect, unix_connect
+    from .legacy.exceptions import (
+        AbortHandshake,
+        InvalidMessage,
+        InvalidStatusCode,
+        RedirectHandshake,
+    )
     from .legacy.protocol import WebSocketCommonProtocol
     from .legacy.server import (
         WebSocketServer,
@@ -131,7 +136,7 @@ else:
             "HeadersLike": ".datastructures",
             "MultipleValuesError": ".datastructures",
             # .exceptions
-            "AbortHandshake": ".exceptions",
+            "ConcurrencyError": ".exceptions",
             "ConnectionClosed": ".exceptions",
             "ConnectionClosedError": ".exceptions",
             "ConnectionClosedOK": ".exceptions",
@@ -140,19 +145,16 @@ else:
             "InvalidHeader": ".exceptions",
             "InvalidHeaderFormat": ".exceptions",
             "InvalidHeaderValue": ".exceptions",
-            "InvalidMessage": ".exceptions",
             "InvalidOrigin": ".exceptions",
             "InvalidParameterName": ".exceptions",
             "InvalidParameterValue": ".exceptions",
             "InvalidState": ".exceptions",
             "InvalidStatus": ".exceptions",
-            "InvalidStatusCode": ".exceptions",
             "InvalidUpgrade": ".exceptions",
             "InvalidURI": ".exceptions",
             "NegotiationError": ".exceptions",
             "PayloadTooBig": ".exceptions",
             "ProtocolError": ".exceptions",
-            "RedirectHandshake": ".exceptions",
             "SecurityError": ".exceptions",
             "WebSocketException": ".exceptions",
             "WebSocketProtocolError": ".exceptions",
@@ -163,6 +165,11 @@ else:
             "WebSocketClientProtocol": ".legacy.client",
             "connect": ".legacy.client",
             "unix_connect": ".legacy.client",
+            # .legacy.exceptions
+            "AbortHandshake": ".legacy.exceptions",
+            "InvalidMessage": ".legacy.exceptions",
+            "InvalidStatusCode": ".legacy.exceptions",
+            "RedirectHandshake": ".legacy.exceptions",
             # .legacy.protocol
             "WebSocketCommonProtocol": ".legacy.protocol",
             # .legacy.server
@@ -179,10 +186,11 @@ else:
             "ExtensionParameter": ".typing",
             "LoggerLike": ".typing",
             "Origin": ".typing",
-            "StatusLike": "typing",
+            "StatusLike": ".typing",
             "Subprotocol": ".typing",
         },
         deprecated_aliases={
+            # deprecated in 9.0 - 2021-09-01
             "framing": ".legacy",
             "handshake": ".legacy",
             "parse_uri": ".uri",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import random
 import warnings
 from typing import Any, Generator, Sequence
 
@@ -173,13 +175,10 @@ class ClientProtocol(Protocol):
 
         try:
             s_w_accept = headers["Sec-WebSocket-Accept"]
-        except KeyError as exc:
-            raise InvalidHeader("Sec-WebSocket-Accept") from exc
-        except MultipleValuesError as exc:
-            raise InvalidHeader(
-                "Sec-WebSocket-Accept",
-                "more than one Sec-WebSocket-Accept header found",
-            ) from exc
+        except KeyError:
+            raise InvalidHeader("Sec-WebSocket-Accept") from None
+        except MultipleValuesError:
+            raise InvalidHeader("Sec-WebSocket-Accept", "multiple values") from None
 
         if s_w_accept != accept_key(self.key):
             raise InvalidHeaderValue("Sec-WebSocket-Accept", s_w_accept)
@@ -225,7 +224,7 @@ class ClientProtocol(Protocol):
 
         if extensions:
             if self.available_extensions is None:
-                raise InvalidHandshake("no extensions supported")
+                raise NegotiationError("no extensions supported")
 
             parsed_extensions: list[ExtensionHeader] = sum(
                 [parse_extension(header_value) for header_value in extensions], []
@@ -280,15 +279,17 @@ class ClientProtocol(Protocol):
 
         if subprotocols:
             if self.available_subprotocols is None:
-                raise InvalidHandshake("no subprotocols supported")
+                raise NegotiationError("no subprotocols supported")
 
             parsed_subprotocols: Sequence[Subprotocol] = sum(
                 [parse_subprotocol(header_value) for header_value in subprotocols], []
             )
 
             if len(parsed_subprotocols) > 1:
-                subprotocols_display = ", ".join(parsed_subprotocols)
-                raise InvalidHandshake(f"multiple subprotocols: {subprotocols_display}")
+                raise InvalidHeader(
+                    "Sec-WebSocket-Protocol",
+                    f"multiple values: {', '.join(parsed_subprotocols)}",
+                )
 
             subprotocol = parsed_subprotocols[0]
 
@@ -322,6 +323,7 @@ class ClientProtocol(Protocol):
                 )
             except Exception as exc:
                 self.handshake_exc = exc
+                self.send_eof()
                 self.parser = self.discard()
                 next(self.parser)  # start coroutine
                 yield
@@ -340,6 +342,7 @@ class ClientProtocol(Protocol):
                 response._exception = exc
                 self.events.append(response)
                 self.handshake_exc = exc
+                self.send_eof()
                 self.parser = self.discard()
                 next(self.parser)  # start coroutine
                 yield
@@ -353,8 +356,38 @@ class ClientProtocol(Protocol):
 
 class ClientConnection(ClientProtocol):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
+        warnings.warn(  # deprecated in 11.0 - 2023-04-02
             "ClientConnection was renamed to ClientProtocol",
             DeprecationWarning,
         )
         super().__init__(*args, **kwargs)
+
+
+BACKOFF_INITIAL_DELAY = float(os.environ.get("WEBSOCKETS_BACKOFF_INITIAL_DELAY", "5"))
+BACKOFF_MIN_DELAY = float(os.environ.get("WEBSOCKETS_BACKOFF_MIN_DELAY", "3.1"))
+BACKOFF_MAX_DELAY = float(os.environ.get("WEBSOCKETS_BACKOFF_MAX_DELAY", "90.0"))
+BACKOFF_FACTOR = float(os.environ.get("WEBSOCKETS_BACKOFF_FACTOR", "1.618"))
+
+
+def backoff(
+    initial_delay: float = BACKOFF_INITIAL_DELAY,
+    min_delay: float = BACKOFF_MIN_DELAY,
+    max_delay: float = BACKOFF_MAX_DELAY,
+    factor: float = BACKOFF_FACTOR,
+) -> Generator[float, None, None]:
+    """
+    Generate a series of backoff delays between reconnection attempts.
+
+    Yields:
+        How many seconds to wait before retrying to connect.
+
+    """
+    # Add a random initial delay between 0 and 5 seconds.
+    # See 7.2.3. Recovering from Abnormal Closure in RFC 6455.
+    yield random.random() * initial_delay
+    delay = min_delay
+    while delay < max_delay:
+        yield delay
+        delay *= factor
+    while True:
+        yield max_delay

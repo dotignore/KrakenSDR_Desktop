@@ -1,4 +1,4 @@
-#!/Users/dotignore/Documents/GitHub/KrakenSDR_direction/flask/venv/bin/python3.12
+#!/Users/dotignore/Documents/GitHub/KrakenSDR_Desktop/two_KrakenSDRs_web/venv/bin/python3.12
 # -*- coding: utf-8 -*-
 import re
 import sys

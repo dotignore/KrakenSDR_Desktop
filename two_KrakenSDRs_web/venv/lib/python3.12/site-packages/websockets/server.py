@@ -69,7 +69,7 @@ class ServerProtocol(Protocol):
         max_size: Maximum size of incoming messages in bytes;
             :obj:`None` disables the limit.
         logger: Logger for this connection;
-            defaults to ``logging.getLogger("websockets.client")``;
+            defaults to ``logging.getLogger("websockets.server")``;
             see the :doc:`logging guide <../../topics/logging>` for details.
 
     """
@@ -204,7 +204,6 @@ class ServerProtocol(Protocol):
         if protocol_header is not None:
             headers["Sec-WebSocket-Protocol"] = protocol_header
 
-        self.logger.info("connection open")
         return Response(101, "Switching Protocols", headers)
 
     def process_request(
@@ -254,12 +253,10 @@ class ServerProtocol(Protocol):
 
         try:
             key = headers["Sec-WebSocket-Key"]
-        except KeyError as exc:
-            raise InvalidHeader("Sec-WebSocket-Key") from exc
-        except MultipleValuesError as exc:
-            raise InvalidHeader(
-                "Sec-WebSocket-Key", "more than one Sec-WebSocket-Key header found"
-            ) from exc
+        except KeyError:
+            raise InvalidHeader("Sec-WebSocket-Key") from None
+        except MultipleValuesError:
+            raise InvalidHeader("Sec-WebSocket-Key", "multiple values") from None
 
         try:
             raw_key = base64.b64decode(key.encode(), validate=True)
@@ -270,13 +267,10 @@ class ServerProtocol(Protocol):
 
         try:
             version = headers["Sec-WebSocket-Version"]
-        except KeyError as exc:
-            raise InvalidHeader("Sec-WebSocket-Version") from exc
-        except MultipleValuesError as exc:
-            raise InvalidHeader(
-                "Sec-WebSocket-Version",
-                "more than one Sec-WebSocket-Version header found",
-            ) from exc
+        except KeyError:
+            raise InvalidHeader("Sec-WebSocket-Version") from None
+        except MultipleValuesError:
+            raise InvalidHeader("Sec-WebSocket-Version", "multiple values") from None
 
         if version != "13":
             raise InvalidHeaderValue("Sec-WebSocket-Version", version)
@@ -314,8 +308,8 @@ class ServerProtocol(Protocol):
         # per https://datatracker.ietf.org/doc/html/rfc6454#section-7.3.
         try:
             origin = headers.get("Origin")
-        except MultipleValuesError as exc:
-            raise InvalidHeader("Origin", "more than one Origin header found") from exc
+        except MultipleValuesError:
+            raise InvalidHeader("Origin", "multiple values") from None
         if origin is not None:
             origin = cast(Origin, origin)
         if self.origins is not None:
@@ -509,7 +503,7 @@ class ServerProtocol(Protocol):
             HTTP response to send to the client.
 
         """
-        # If a user passes an int instead of a HTTPStatus, fix it automatically.
+        # If status is an int instead of an HTTPStatus, fix it automatically.
         status = http.HTTPStatus(status)
         body = text.encode()
         headers = Headers(
@@ -520,14 +514,7 @@ class ServerProtocol(Protocol):
                 ("Content-Type", "text/plain; charset=utf-8"),
             ]
         )
-        response = Response(status.value, status.phrase, headers, body)
-        # When reject() is called from accept(), handshake_exc is already set.
-        # If a user calls reject(), set handshake_exc to guarantee invariant:
-        # "handshake_exc is None if and only if opening handshake succeeded."
-        if self.handshake_exc is None:
-            self.handshake_exc = InvalidStatus(response)
-        self.logger.info("connection rejected (%d %s)", status.value, status.phrase)
-        return response
+        return Response(status.value, status.phrase, headers, body)
 
     def send_response(self, response: Response) -> None:
         """
@@ -550,7 +537,20 @@ class ServerProtocol(Protocol):
         if response.status_code == 101:
             assert self.state is CONNECTING
             self.state = OPEN
+            self.logger.info("connection open")
+
         else:
+            # handshake_exc may be already set if accept() encountered an error.
+            # If the connection isn't open, set handshake_exc to guarantee that
+            # handshake_exc is None if and only if opening handshake succeeded.
+            if self.handshake_exc is None:
+                self.handshake_exc = InvalidStatus(response)
+            self.logger.info(
+                "connection rejected (%d %s)",
+                response.status_code,
+                response.reason_phrase,
+            )
+
             self.send_eof()
             self.parser = self.discard()
             next(self.parser)  # start coroutine
@@ -580,7 +580,7 @@ class ServerProtocol(Protocol):
 
 class ServerConnection(ServerProtocol):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        warnings.warn(
+        warnings.warn(  # deprecated in 11.0 - 2023-04-02
             "ServerConnection was renamed to ServerProtocol",
             DeprecationWarning,
         )
