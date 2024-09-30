@@ -17,7 +17,6 @@ Time: 2024-09-30T21:18:52.891722, Freq: 100 MHz, KrakenSDR 1: N=50.4364810212406
 Time: 2024-09-30T21:18:52.892402, Freq: 100 MHz, KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=174.0°
 Time: 2024-09-30T21:18:52.955595, Freq: 100 MHz, KrakenSDR 1: N=50.4364810212406, E=30.48805736470968, B=235°, D=174.0°
 Time: 2024-09-30T21:18:52.956090, Freq: 100 MHz, KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=174.0°
-................
 ..............
 Time: 2024-09-30T21:18:57.327714, Freq: 100 MHz, KrakenSDR 1: N=50.4364810212406, E=30.48805736470968, B=235°, D=175.0°
 Time: 2024-09-30T21:18:57.329002, Freq: 100 MHz, KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=175.0°
@@ -31,9 +30,8 @@ Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz, KrakenSDR 2: N=50.4796571687164
 - Sorting: by date, by frequency, by region on the map. 
 - Discarding incorrect data.
 
+------------
 
 Version ONE KrakenSDR
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/one_krakenSDR_web/map.png)
-
-
