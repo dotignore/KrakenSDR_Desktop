@@ -1,5 +1,7 @@
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
 
+------------
+
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/structure.jpg)
 
 Version TWO KrakenSDRs
@@ -30,7 +32,7 @@ Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz, KrakenSDR 2: N=50.4796571687164
 - Sorting: by date, by frequency, by region on the map. 
 - Discarding incorrect data.
 
-------------
+с
 
 Version ONE KrakenSDR
 
