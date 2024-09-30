@@ -29,9 +29,9 @@ Time: 2024-09-30T21:18:57.759780, Freq: 100 MHz, KrakenSDR 1: N=50.4364810212406
 Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz, KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=176.0°
 ```
 
-In development stage next:
-Write log data to DB SQLight 
-Data display on the map. 
-Sorting: by date, by frequency, by region on the map. 
-Discarding incorrect data.
+**In development stage next**:
+- Write log data to DB SQLight 
+- Data display on the map. 
+- Sorting: by date, by frequency, by region on the map. 
+- Discarding incorrect data.
 
