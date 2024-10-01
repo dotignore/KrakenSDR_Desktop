@@ -1,7 +1,3 @@
-# KrakenScope
-**My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr** ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/SignalGroupQr.png)
-
-------------
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
 
@@ -47,3 +43,12 @@ Version ONE KrakenSDR
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/one_krakenSDR_web/map.png)
 
 ## URL: [ONE KrakenSDRs web](https://github.com/dotignore/KrakenSDR_Desktop/tree/main/one_krakenSDR_web "Two KrakenSDRs web")
+
+------------
+
+# KrakenScope
+**My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr** 
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/SignalGroupQr.png)
+
+------------
