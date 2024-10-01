@@ -1,3 +1,4 @@
+# KrakenScope
 **My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr**
 
 ------------
