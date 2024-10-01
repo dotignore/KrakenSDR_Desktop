@@ -1,14 +1,14 @@
 {
     "krakensdr_1": {
         "start_coordinates": {
-            "latitude": 50.48243078431163,
-            "longitude": 30.453099432634197
+            "latitude": 47.152155637669935,
+            "longitude": 37.51730917399983
         },
         "distance_km": 25.0,
-        "bearing_deg": 85,
+        "bearing_deg": 180,
         "angles_krakensdr": {
             "max_y": 0.0,
-            "x_for_max_y": 352.0
+            "x_for_max_y": 356.0
         },
         "ws_url": "ws://10.10.1.93:8080/_push"
     }
