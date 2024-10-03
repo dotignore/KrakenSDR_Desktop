@@ -375,16 +375,25 @@ def run_flask_app():
 def open_browser():
     webbrowser.open_new('http://127.0.0.1:5000/')
 
+# Function to start update_data_periodically.py
+def run_update_data_periodically():
+    subprocess.run(['python3', 'update_data_periodically.py'])
+
 if __name__ == '__main__':
     # Run Flask and WebSocket for each KrakenSDR in parallel
     flask_thread = Thread(target=run_flask_app)
     websocket_thread_1 = Thread(target=run_websocket, args=(ws_url_1, 'krakensdr_1'))
     websocket_thread_2 = Thread(target=run_websocket, args=(ws_url_2, 'krakensdr_2'))
+    update_thread = Thread(target=run_update_data_periodically)
 
+    # Start all threads
     flask_thread.start()
     websocket_thread_1.start()
     websocket_thread_2.start()
+    update_thread.start()
 
+    # Ensure that all threads join back
     flask_thread.join()
     websocket_thread_1.join()
     websocket_thread_2.join()
+    update_thread.join()

@@ -8,7 +8,7 @@
         "bearing_deg": 140,
         "angles_krakensdr": {
             "max_y": 0.0,
-            "x_for_max_y": 356.0
+            "x_for_max_y": 3.0
         },
         "ws_url": "ws://10.10.1.93:8080/_push"
     }

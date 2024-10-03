@@ -1,23 +1,4 @@
-# GNU GENERAL PUBLIC LICENSE
-# Version 3, 29 June 2007
-#
-# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://x.com/VolodymyrTr
-# This is the source code for KrakenSDR direction.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-
+import sqlite3
 import json
 import datetime
 import asyncio
@@ -31,8 +12,25 @@ x_for_max_y_2 = None
 # Lock for thread safety
 data_lock = Lock()
 
+# WebSocket URLs
 ws_url_1 = "ws://10.10.1.93:8080/_push"
 ws_url_2 = "ws://10.10.1.93:8080/_push"
+
+# Function to insert data into the database
+def insert_data(time, frequency, krakensdr_id, latitude, longitude, bearing, direction):
+    # Open connection to the SQLite database (path: database/krakensdr_data.db)
+    conn = sqlite3.connect('database/krakensdr_data.db')
+    cursor = conn.cursor()
+
+    # Insert data into the table
+    cursor.execute('''
+    INSERT INTO krakensdr_data (time, frequency, krakensdr_id, latitude, longitude, bearing, direction)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (time, frequency, krakensdr_id, latitude, longitude, bearing, direction))
+    
+    # Save changes and close the connection
+    conn.commit()
+    conn.close()
 
 # Function to update JSON and get x_for_max_y for ws_url_1
 def update_json_1(x_values, y_values):
@@ -121,7 +119,7 @@ def output_data_1():
                         frequency_value = state['value']
                         break
 
-            # Print the data for KrakenSDR 1
+            # Output the data for KrakenSDR 1
             print_krakensdr_data(1, frequency_value, krakensdr_1_lat, krakensdr_1_lon, krakensdr_1_bearing, x_for_max_y_1)
 
     except Exception as e:
@@ -150,16 +148,19 @@ def output_data_2():
                         frequency_value = state['value']
                         break
 
-            # Print the data for KrakenSDR 2
+            # Output the data for KrakenSDR 2
             print_krakensdr_data(2, frequency_value, krakensdr_2_lat, krakensdr_2_lon, krakensdr_2_bearing, x_for_max_y_2)
 
     except Exception as e:
         print(f"Error outputting data for KrakenSDR 2: {str(e)}")
 
-# Function to print KrakenSDR data
+# Function to print KrakenSDR data and insert into SQLite database
 def print_krakensdr_data(sdr_id, frequency_value, latitude, longitude, bearing, direction):
     current_time = datetime.datetime.now().isoformat()
-    print(f"Time: {current_time}, Freq: {frequency_value} MHz, KrakenSDR {sdr_id}: N={latitude}, E={longitude}, B={bearing}°, D={direction}°")
+    print(f"Time: {current_time}, Freq: {frequency_value} MHz, KrakenSDR: {sdr_id}, N: {latitude}, E: {longitude}, B: {bearing}, D: {direction}")
+
+    # Insert data into SQLite database
+    insert_data(current_time, frequency_value, sdr_id, latitude, longitude, bearing, direction)
 
 if __name__ == '__main__':
     # Run WebSocket 1 in a separate thread
