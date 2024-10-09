@@ -9,6 +9,7 @@ cursor = conn.cursor()
 # Create a table if it doesn't already exist
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS krakensdr_data (
+    session INTEGER,
     time TEXT,
     frequency REAL,
     krakensdr_id INTEGER,

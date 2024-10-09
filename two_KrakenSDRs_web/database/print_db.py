@@ -14,7 +14,7 @@ rows = cursor.fetchall()
 
 # Check if there is any data
 if rows:
-    print("Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction")
+    print("Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction")
     for row in rows:
         print(row)
 else:

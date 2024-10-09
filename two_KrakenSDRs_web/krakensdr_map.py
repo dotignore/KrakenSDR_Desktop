@@ -1,7 +1,7 @@
 # GNU GENERAL PUBLIC LICENSE
 # Version 3, 29 June 2007
 #
-# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://x.com/VolodymyrTr
+# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://github.com/dotignore/KrakenSDR_Desktop/
 # This is the source code for KrakenSDR direction.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 
 
 from flask import Flask, render_template, jsonify, request
+import sqlite3
 import json
 import math
 import webbrowser
@@ -70,6 +71,10 @@ def calculate_new_point(lat, lon, distance_km, bearing_deg):
 
     return new_lat, new_lon
 
+
+
+
+
 # Route for the main page
 @app.route('/')
 def index():
@@ -93,6 +98,17 @@ def index():
         return render_template('index.html', frequency_value=0)  # Значение по умолчанию, если файл не найден
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
+
+
+
+
+
+
+
+
+
+
+
 
 # Route to get map data
 @app.route('/get_map_data')
@@ -300,6 +316,57 @@ def update_frequency_and_run():
         result = subprocess.run(['python3', 'change_freq.py'], capture_output=True, text=True)
         
         return jsonify({'status': 'success', 'script_output': result.stdout})
+
+    except FileNotFoundError as e:
+        return jsonify({'error': f'File not found: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# Function to increment the session and update the frequency in the database
+@app.route('/update_frequency_and_session', methods=['POST'])
+def update_frequency_and_session():
+    data = request.json
+    new_frequency = data.get('frequency')
+    
+    # Path to your SQLite database
+    db_path = 'database/krakensdr_data.db'
+    
+    try:
+        # Open connection to the SQLite database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get the current maximum session value
+        cursor.execute('SELECT MAX(session) FROM krakensdr_data')
+        latest_session = cursor.fetchone()[0]
+        
+        # If there's no session in the table, start with 1
+        if latest_session is None:
+            new_session = 1
+        else:
+            new_session = latest_session + 1
+        
+        # Update frequency value in freq_rqst_1.json
+        with open('freq_rqst_1.json', 'r+') as f:
+            json_data = json.load(f)
+            for state in json_data['data']['state']:
+                if state['id'] == 'daq_center_freq':
+                    state['value'] = new_frequency  # Update frequency value
+            f.seek(0)
+            json.dump(json_data, f, indent=4)
+            f.truncate()
+        
+        # Insert the new session into the database (you can adjust the insert logic as needed)
+        cursor.execute('''
+            INSERT INTO krakensdr_data (time, session) VALUES (datetime('now'), ?)
+        ''', (new_session,))
+        
+        # Commit the transaction and close the connection
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'status': 'success', 'new_session': new_session})
 
     except FileNotFoundError as e:
         return jsonify({'error': f'File not found: {str(e)}'}), 500

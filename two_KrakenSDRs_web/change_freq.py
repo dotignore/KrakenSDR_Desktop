@@ -1,7 +1,8 @@
+
 # GNU GENERAL PUBLIC LICENSE
 # Version 3, 29 June 2007
 #
-# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://x.com/VolodymyrTr
+# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://github.com/dotignore/KrakenSDR_Desktop/
 # This is the source code for KrakenSDR direction.
 #
 # This program is free software: you can redistribute it and/or modify

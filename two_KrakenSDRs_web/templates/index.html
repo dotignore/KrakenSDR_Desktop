@@ -278,15 +278,7 @@
             });
         });
 
-        
-
-
-
-
-
-
-
-            // Update frequency in freq_rqst_1.json and trigger the WebSocket request
+                    // Update frequency in freq_rqst_1.json and trigger the WebSocket request
             $('#submitFrequency').on('click', function() {
                 var frequencyValue = parseFloat($('#frequencyInput').val()); // Получаем значение частоты как число
 
@@ -304,6 +296,33 @@
                     }
                 });
             });
+
+
+
+
+
+
+
+
+        // Update frequency and increment session in the database
+        $('#submitFrequency').on('click', function() {
+            var frequencyValue = parseFloat($('#frequencyInput').val());
+
+            // Send the request to update the frequency and increment the session
+            $.ajax({
+                url: '/update_frequency_and_session',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ frequency: frequencyValue }),
+                success: function(response) {
+                    console.log('Frequency and session successfully updated:', response);
+                },
+                error: function(error) {
+                    console.log('Error updating frequency or session:', error);
+                }
+            });
+        });
+
 
 
     // Function to send a WebSocket request with the updated frequency value

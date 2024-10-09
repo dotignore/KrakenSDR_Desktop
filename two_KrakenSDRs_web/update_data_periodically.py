@@ -1,3 +1,23 @@
+# GNU GENERAL PUBLIC LICENSE
+# Version 3, 29 June 2007
+#
+# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://github.com/dotignore/KrakenSDR_Desktop/
+# This is the source code for KrakenSDR direction.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 import sqlite3
 import json
 import datetime
@@ -16,6 +36,26 @@ data_lock = Lock()
 ws_url_1 = "ws://10.10.1.93:8080/_push"
 ws_url_2 = "ws://10.10.1.93:8080/_push"
 
+# Function to get the latest session value from the database
+def get_latest_session():
+    conn = sqlite3.connect('database/krakensdr_data.db')
+    cursor = conn.cursor()
+
+    # Query to count the number of records in the table
+    cursor.execute('SELECT COUNT(*) FROM krakensdr_data')
+    record_count = cursor.fetchone()[0]
+
+    if record_count == 0:
+        # If no records exist, return 0
+        conn.close()
+        return 0
+    else:
+        # Otherwise, get the latest session value
+        cursor.execute('SELECT MAX(session) FROM krakensdr_data')
+        latest_session = cursor.fetchone()[0]
+        conn.close()
+        return latest_session
+
 # Function to insert data into the database
 def insert_data(time, frequency, krakensdr_id, latitude, longitude, bearing, direction):
     # Open connection to the SQLite database (path: database/krakensdr_data.db)
@@ -24,13 +64,14 @@ def insert_data(time, frequency, krakensdr_id, latitude, longitude, bearing, dir
 
     # Insert data into the table
     cursor.execute('''
-    INSERT INTO krakensdr_data (time, frequency, krakensdr_id, latitude, longitude, bearing, direction)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (time, frequency, krakensdr_id, latitude, longitude, bearing, direction))
+    INSERT INTO krakensdr_data (time, frequency, krakensdr_id, latitude, longitude, bearing, direction, session)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (time, frequency, krakensdr_id, latitude, longitude, bearing, direction, session))
     
     # Save changes and close the connection
     conn.commit()
     conn.close()
+
 
 # Function to update JSON and get x_for_max_y for ws_url_1
 def update_json_1(x_values, y_values):
@@ -157,12 +198,31 @@ def output_data_2():
 # Function to print KrakenSDR data and insert into SQLite database
 def print_krakensdr_data(sdr_id, frequency_value, latitude, longitude, bearing, direction):
     current_time = datetime.datetime.now().isoformat()
-    print(f"Time: {current_time}, Freq: {frequency_value} MHz, KrakenSDR: {sdr_id}, N: {latitude}, E: {longitude}, B: {bearing}, D: {direction}")
+    print(f"Time: {current_time}, Freq: {frequency_value} MHz, KrakenSDR: {sdr_id}, N: {latitude}, E: {longitude}, B: {bearing}, D: {direction}, Session: {session}")
 
     # Insert data into SQLite database
     insert_data(current_time, frequency_value, sdr_id, latitude, longitude, bearing, direction)
 
+
+# Function to get the latest session value from the database
+def get_latest_session():
+    conn = sqlite3.connect('database/krakensdr_data.db')
+    cursor = conn.cursor()
+
+    # Query to get the latest session value
+    cursor.execute('SELECT MAX(session) FROM krakensdr_data')
+    result = cursor.fetchone()
+
+    # If there's no session in the table, return 0
+    latest_session = result[0] if result[0] is not None else 0
+    
+    conn.close()
+    return latest_session
+
 if __name__ == '__main__':
+    # Set the session value before starting the WebSocket threads
+    session = get_latest_session() + 1
+
     # Run WebSocket 1 in a separate thread
     websocket_thread_1 = Thread(target=run_websocket_1)
     websocket_thread_1.start()

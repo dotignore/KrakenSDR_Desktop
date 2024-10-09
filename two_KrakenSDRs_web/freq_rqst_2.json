@@ -21,7 +21,7 @@
             {
                 "id": "daq_center_freq",
                 "property": "value",
-                "value": 102.5
+                "value": 100
             },
             {
                 "id": "daq_rx_gain",
