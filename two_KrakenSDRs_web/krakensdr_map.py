@@ -323,55 +323,59 @@ def update_frequency_and_run():
         return jsonify({'error': str(e)}), 500
 
 
-# Function to increment the session and update the frequency in the database
-@app.route('/update_frequency_and_session', methods=['POST'])
-def update_frequency_and_session():
-    data = request.json
-    new_frequency = data.get('frequency')
+# @app.route('/update_frequency_and_session', methods=['POST'])
+# def update_frequency_and_session():
+#     data = request.json
+#     print("Received data:", data)  # Выводим принятые данные в консоль
+#     new_frequency = data.get('frequency')
     
-    # Path to your SQLite database
-    db_path = 'database/krakensdr_data.db'
+#     # Path to your SQLite database
+#     db_path = 'database/krakensdr_data.db'
     
-    try:
-        # Open connection to the SQLite database
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+#     try:
+#         # Open connection to the SQLite database
+#         conn = sqlite3.connect(db_path)
+#         cursor = conn.cursor()
         
-        # Get the current maximum session value
-        cursor.execute('SELECT MAX(session) FROM krakensdr_data')
-        latest_session = cursor.fetchone()[0]
+#         # Get the current maximum session value
+#         cursor.execute('SELECT MAX(session) FROM krakensdr_data')
+#         latest_session = cursor.fetchone()[0]
         
-        # If there's no session in the table, start with 1
-        if latest_session is None:
-            new_session = 1
-        else:
-            new_session = latest_session + 1
+#         # If there's no session in the table, start with 1
+#         if latest_session is None:
+#             new_session = 1
+#         else:
+#             new_session = latest_session + 1
         
-        # Update frequency value in freq_rqst_1.json
-        with open('freq_rqst_1.json', 'r+') as f:
-            json_data = json.load(f)
-            for state in json_data['data']['state']:
-                if state['id'] == 'daq_center_freq':
-                    state['value'] = new_frequency  # Update frequency value
-            f.seek(0)
-            json.dump(json_data, f, indent=4)
-            f.truncate()
+#         # Update frequency value in freq_rqst_1.json
+#         with open('freq_rqst_1.json', 'r+') as f:
+#             json_data = json.load(f)
+#             for state in json_data['data']['state']:
+#                 if state['id'] == 'daq_center_freq':
+#                     state['value'] = new_frequency  # Update frequency value
+#             f.seek(0)
+#             json.dump(json_data, f, indent=4)
+#             f.truncate()
         
-        # Insert the new session into the database (you can adjust the insert logic as needed)
-        cursor.execute('''
-            INSERT INTO krakensdr_data (time, session) VALUES (datetime('now'), ?)
-        ''', (new_session,))
+#         # Insert the new session into the database (you can adjust the insert logic as needed)
+#         cursor.execute('''
+#             INSERT INTO krakensdr_data (time, session) VALUES (datetime('now'), ?)
+#         ''', (new_session,))
         
-        # Commit the transaction and close the connection
-        conn.commit()
-        conn.close()
+#         # Commit the transaction and close the connection
+#         conn.commit()
+#         conn.close()
         
-        return jsonify({'status': 'success', 'new_session': new_session})
+#         print("New session value:", new_session)  # Выводим значение новой сессии в консоль
+#         return jsonify({'status': 'success', 'new_session': new_session})
 
-    except FileNotFoundError as e:
-        return jsonify({'error': f'File not found: {str(e)}'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#     except FileNotFoundError as e:
+#         print(f"Error: {str(e)}")  # Выводим ошибку в консоль
+#         return jsonify({'error': f'File not found: {str(e)}'}), 500
+#     except Exception as e:
+#         print(f"Error: {str(e)}")  # Выводим ошибку в консоль
+#         return jsonify({'error': str(e)}), 500
+
 
 
 # Function to start update_data_periodically.py

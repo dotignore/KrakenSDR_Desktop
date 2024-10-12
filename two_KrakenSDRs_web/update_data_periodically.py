@@ -36,6 +36,8 @@ data_lock = Lock()
 ws_url_1 = "ws://10.10.1.93:8080/_push"
 ws_url_2 = "ws://10.10.1.93:8080/_push"
 
+
+
 # Function to get the latest session value from the database
 def get_latest_session():
     conn = sqlite3.connect('database/krakensdr_data.db')
@@ -209,15 +211,20 @@ def get_latest_session():
     conn = sqlite3.connect('database/krakensdr_data.db')
     cursor = conn.cursor()
 
-    # Query to get the latest session value
-    cursor.execute('SELECT MAX(session) FROM krakensdr_data')
-    result = cursor.fetchone()
+    # Query to count the number of records in the table
+    cursor.execute('SELECT COUNT(*) FROM krakensdr_data')
+    record_count = cursor.fetchone()[0]
 
-    # If there's no session in the table, return 0
-    latest_session = result[0] if result[0] is not None else 0
-    
-    conn.close()
-    return latest_session
+    if record_count == 0:
+        # If no records exist, return 0
+        conn.close()
+        return 0
+    else:
+        # Otherwise, get the latest session value
+        cursor.execute('SELECT MAX(session) FROM krakensdr_data')
+        latest_session = cursor.fetchone()[0]
+        conn.close()
+        return latest_session
 
 if __name__ == '__main__':
     # Set the session value before starting the WebSocket threads

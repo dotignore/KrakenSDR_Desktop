@@ -29,10 +29,12 @@ Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz, KrakenSDR 2: N=50.4796571687164
 
 **In development stage next**:
 - [x] Write log data to DB SQLight.
+  - [ ] add identification session to DB for next sort.
 - [ ] Data display on the map.
 - [ ] Sorting: by date, by frequency, by region on the map.
-- [ ] Discarding incorrect data.
-- [ ] Get frequency from Uniden.
+  - [ ] average DF
+  - [ ] Discarding incorrect data.
+  - [ ] Get frequency from Uniden.
 
 
 ## URL: [Two KrakenSDRs web](https://github.com/dotignore/KrakenSDR_Desktop/tree/main/two_KrakenSDRs_web "Two KrakenSDRs web")
