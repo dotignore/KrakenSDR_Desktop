@@ -29,7 +29,7 @@ KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=176.0°
 
 **In development stage next**:
 - [x] Write log data to DB SQLight.
-  - [ ] add identification session to DB for next sort.
+  - [x] add identification **SESSION** to DB for next sort.
 ------------
 ```python
 Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction
