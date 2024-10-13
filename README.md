@@ -14,12 +14,6 @@ Toolbar
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/tools.png)
 
-KrakenSDR tech specs
-- Obtaining the first bearing from a cold start: 20 to 50 seconds
-- Obtaining a bearing when retuning outside the 2.4 MHz spectrum band: 5 seconds
-- Obtaining a bearing within the 2.4 MHz spectrum band: 2 seconds
-- Bearing update: 0.44 seconds
-
 - [x] LOG (Time, Freq, Name KrakenSDR, GPS, Bearing degree, Direction degree) 
 ------------
 ```python
@@ -75,6 +69,12 @@ Version ONE KrakenSDR
 ------------
 
 # KrakenScope
+KrakenSDR tech specs
+- Obtaining the first bearing from a cold start: 20 to 50 seconds
+- Obtaining a bearing when retuning outside the 2.4 MHz spectrum band: 5 seconds
+- Obtaining a bearing within the 2.4 MHz spectrum band: 2 seconds
+- Bearing update: 0.44 seconds
+
 **My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr** 
 
 ------------
