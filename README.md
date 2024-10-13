@@ -15,13 +15,11 @@ Toolbar
 
 - [x] LOG (Time, Freq, Name KrakenSDR, GPS, Bearing degree, Direction degree) 
 
-```python
 ###### Time: 2024-09-30T21:18:52.891722, Freq: 100 MHz, KrakenSDR 1: N=50.4364810212406, E=30.48805736470968, B=235°, D=174.0°
 Time: 2024-09-30T21:18:52.892402, Freq: 100 MHz, KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=174.0°
 ..............
 Time: 2024-09-30T21:18:57.759780, Freq: 100 MHz, KrakenSDR 1: N=50.4364810212406, E=30.48805736470968, B=235°, D=176.0°
 Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz, KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=176.0°
-```
 
 **In development stage next**:
 - [x] Write log data to DB SQLight.
