@@ -1,7 +1,8 @@
-
-![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/KrakenScope.png)
 
 ------------
+
+![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/kraken_interface_bw.png)
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/structure.jpg)
 
@@ -12,6 +13,12 @@ Version TWO KrakenSDRs
 Toolbar
 
 ![KrakenSDR Web Map](https://github.com/dotignore/KrakenSDR_Desktop/blob/main/media/tools.png)
+
+KrakenSDR tech specs
+- Obtaining the first bearing from a cold start: 20 to 50 seconds
+- Obtaining a bearing when retuning outside the 2.4 MHz spectrum band: 5 seconds
+- Obtaining a bearing within the 2.4 MHz spectrum band: 2 seconds
+- Bearing update: 0.44 seconds
 
 - [x] LOG (Time, Freq, Name KrakenSDR, GPS, Bearing degree, Direction degree) 
 ------------
@@ -38,14 +45,6 @@ Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction
 140.0, 192.0)
 (0, '2024-10-13T18:56:25.303958', 100.0, 1, 47.152155637669935, 37.51730917399983, 
 180.0, 192.0)
-(0, '2024-10-13T18:56:25.741966', 100.0, 2, 47.131840148609655, 37.454905671766035,
-140.0, 202.0)
-(0, '2024-10-13T18:56:25.743766', 100.0, 1, 47.152155637669935, 37.51730917399983, 
-180.0, 202.0)
-(0, '2024-10-13T18:56:26.176140', 100.0, 2, 47.131840148609655, 37.454905671766035, 
-140.0, 199.0)
-(0, '2024-10-13T18:56:26.177992', 100.0, 1, 47.152155637669935, 37.51730917399983, 
-180.0, 199.0)
 ..............
 (1, '2024-10-13T18:56:26.609921', 102.5, 2, 47.131840148609655, 37.454905671766035, 
 140.0, 201.0)
@@ -53,16 +52,6 @@ Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction
 180.0, 201.0)
 (1, '2024-10-13T18:56:27.056610', 102.5, 2, 47.131840148609655, 37.454905671766035,
 140.0, 203.0)
-(1, '2024-10-13T18:56:27.058523', 102.5, 1, 47.152155637669935, 37.51730917399983, 
-180.0, 203.0)
-(1, '2024-10-13T18:56:28.045607', 102.5, 2, 47.131840148609655, 37.454905671766035, 
-140.0, 203.0)
-(1, '2024-10-13T18:56:28.047284', 102.5, 1, 47.152155637669935, 37.51730917399983, 
-180.0, 203.0)
-(1, '2024-10-13T18:56:29.125170', 102.5, 2, 47.131840148609655, 37.454905671766035, 
-140.0, 52.0)
-(1, '2024-10-13T18:56:29.126954', 102.5, 1, 47.152155637669935, 37.51730917399983, 
-180.0, 52.0)
 ```
 
 **In development stage next**:
