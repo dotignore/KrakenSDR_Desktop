@@ -27,7 +27,6 @@ Time: 2024-09-30T21:18:57.760440, Freq: 100 MHz,
 KrakenSDR 2: N=50.47965716871645, E=30.449911826290194, B=280°, D=176.0°
 ```
 
-**In development stage next**:
 - [x] Write log data to DB SQLight.
   - [x] add identification **SESSION** to DB for next sort.
 ------------
@@ -66,6 +65,7 @@ Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction
 180.0, 52.0)
 ```
 
+**In development stage next**:
 - [ ] Data display on the map.
 - [ ] Sorting: by date, by frequency, by region on the map.
   - [ ] average DF
