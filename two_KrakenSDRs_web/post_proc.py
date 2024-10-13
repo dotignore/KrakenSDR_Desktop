@@ -1,3 +1,22 @@
+# GNU GENERAL PUBLIC LICENSE
+# Version 3, 29 June 2007
+#
+# Copyright (C) 2024 Tarasenko Volodymyr hc158b@gmail.com https://github.com/dotignore/KrakenSDR_Desktop/
+# This is the source code for KrakenSDR direction.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import webbrowser
 import json
 import os
@@ -43,13 +62,18 @@ coordinates = []
 
 if rows:
     for row in rows:
-        time, freq, sdr_id, lat, lon, bearing, direction = row
+        session, time, freq, sdr_id, lat, lon, bearing, direction = row
+        # Skip rows with None in the bearing or direction fields
+        if bearing is None or direction is None:
+            continue
         angle = bearing + direction  # Calculate the total angle
         new_lat, new_lon = calculate_new_point(lat, lon, 25, angle)  # 25 km line length
         lines.append([[lat, lon], [new_lat, new_lon]])
         coordinates.append([lat, lon])
 else:
     print("No data found in the database.")
+
+
 
 # Close the connection to the database
 conn.close()

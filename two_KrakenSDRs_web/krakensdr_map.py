@@ -71,18 +71,14 @@ def calculate_new_point(lat, lon, distance_km, bearing_deg):
 
     return new_lat, new_lon
 
-
-
-
-
 # Route for the main page
 @app.route('/')
 def index():
     try:
-        # Открываем и читаем freq_rqst_1.json
+        # Open and read freq_rqst_1.json
         with open('freq_rqst_1.json', 'r') as f:
             json_data = json.load(f)
-            # Ищем значение частоты
+            # Search for the frequency value
             frequency_value = None
             for state in json_data['data']['state']:
                 if state['id'] == 'daq_center_freq':
@@ -90,24 +86,14 @@ def index():
                     break
         
         if frequency_value is None:
-            frequency_value = 0  # Если значение не найдено, используем значение по умолчанию
+            frequency_value = 0  # Use default value if not found
 
         return render_template('index.html', frequency_value=frequency_value)
 
     except FileNotFoundError:
-        return render_template('index.html', frequency_value=0)  # Значение по умолчанию, если файл не найден
+        return render_template('index.html', frequency_value=0)  # Default value if file not found
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
-
-
-
-
-
-
-
-
-
-
 
 
 # Route to get map data
@@ -203,16 +189,16 @@ def update_coordinates():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Новый маршрут для обновления bearing_deg для krakensdr_1 или krakensdr_2
+# New route to update bearing_deg for krakensdr_1 or krakensdr_2
 @app.route('/update_bearing/<int:kraken_id>', methods=['POST'])
 def update_bearing(kraken_id):
-    data = request.json  # Получаем данные из запроса
+    data = request.json  # Get data from the request
     new_bearing_deg = data.get('bearing_deg')
 
     if kraken_id not in [1, 2]:
         return jsonify({'error': 'Invalid KrakenSDR identifier'}), 400
 
-    # Выбираем правильный файл для обновления
+    # Select the correct file to update
     file_name = 'data_krkn_1.json' if kraken_id == 1 else 'data_krkn_2.json'
     krakensdr_key = 'krakensdr_1' if kraken_id == 1 else 'krakensdr_2'
 
@@ -220,7 +206,7 @@ def update_bearing(kraken_id):
         with open(file_name, 'r+') as f:
             json_data = json.load(f)
             
-            # Обновляем значение bearing_deg
+            # Update bearing_deg value
             json_data[krakensdr_key]['bearing_deg'] = new_bearing_deg
             
             f.seek(0)
@@ -235,20 +221,20 @@ def update_bearing(kraken_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Новый маршрут для обновления значения частоты
+# New route to update frequency value
 @app.route('/update_frequency', methods=['POST'])
 def update_frequency():
-    data = request.json  # Получаем данные из запроса
+    data = request.json  # Get data from the request
     new_frequency_value = data.get('value')
 
-    # Вы можете настроить путь к файлу, который нужно обновить
+    # You can set the path to the file that needs to be updated
     file_name = 'freq_rqst_1.json'
 
     try:
         with open(file_name, 'r+') as f:
             json_data = json.load(f)
             
-            # Обновляем значение частоты
+            # Update frequency value
             json_data['frequency'] = new_frequency_value
             
             f.seek(0)
@@ -269,7 +255,7 @@ def get_bearing_value(kraken_id):
     if kraken_id not in [1, 2]:
         return jsonify({'error': 'Invalid KrakenSDR identifier'}), 400
 
-    # Определение имени файла JSON
+    # Define JSON file name
     file_name = 'data_krkn_1.json' if kraken_id == 1 else 'data_krkn_2.json'
     krakensdr_key = 'krakensdr_1' if kraken_id == 1 else 'krakensdr_2'
 
@@ -285,34 +271,34 @@ def get_bearing_value(kraken_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Маршрут для обновления частоты и запуска скрипта
+# Route to update frequency and run script
 @app.route('/update_frequency_and_run', methods=['POST'])
 def update_frequency_and_run():
     data = request.json
     new_frequency = data.get('frequency')
 
     try:
-        # Обновляем значения в freq_rqst_1.json
+        # Update values in freq_rqst_1.json
         with open('freq_rqst_1.json', 'r+') as f1:
             json_data_1 = json.load(f1)
             for state in json_data_1['data']['state']:
                 if state['id'] == 'daq_center_freq':
-                    state['value'] = new_frequency  # Обновляем значение частоты
+                    state['value'] = new_frequency  # Update frequency value
             f1.seek(0)
             json.dump(json_data_1, f1, indent=4)
             f1.truncate()
 
-        # Обновляем значения в freq_rqst_2.json
+        # Update values in freq_rqst_2.json
         with open('freq_rqst_2.json', 'r+') as f2:
             json_data_2 = json.load(f2)
             for state in json_data_2['data']['state']:
                 if state['id'] == 'daq_center_freq':
-                    state['value'] = new_frequency  # Обновляем значение частоты
+                    state['value'] = new_frequency  # Update frequency value
             f2.seek(0)
             json.dump(json_data_2, f2, indent=4)
             f2.truncate()
 
-        # Выполняем change_freq.py
+        # Execute change_freq.py
         result = subprocess.run(['python3', 'change_freq.py'], capture_output=True, text=True)
         
         return jsonify({'status': 'success', 'script_output': result.stdout})
@@ -322,11 +308,11 @@ def update_frequency_and_run():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+# Route to update frequency and session
 @app.route('/update_frequency_and_session', methods=['POST'])
 def update_frequency_and_session():
     data = request.json
-    print("Received data:", data)  # Выводим принятые данные в консоль
+    print("Received data:", data)  # Print received data to console
     new_frequency = data.get('frequency')
     
     # Path to your SQLite database
@@ -366,18 +352,15 @@ def update_frequency_and_session():
         conn.commit()
         conn.close()
         
-        print("New session value:", new_session)  # Выводим значение новой сессии в консоль
+        print("New session value:", new_session)  # Print the new session value to console
         return jsonify({'status': 'success', 'new_session': new_session})
 
     except FileNotFoundError as e:
-        print(f"Error: {str(e)}")  # Выводим ошибку в консоль
+        print(f"Error: {str(e)}")  # Print error to console
         return jsonify({'error': f'File not found: {str(e)}'}), 500
     except Exception as e:
-        print(f"Error: {str(e)}")  # Выводим ошибку в консоль
+        print(f"Error: {str(e)}")  # Print error to console
         return jsonify({'error': str(e)}), 500
-
-
-
 
 # Function to start update_data_periodically.py
 def run_update_data_periodically():
@@ -437,31 +420,6 @@ def run_websocket(ws_url, krakensdr):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(receive_data(ws_url, krakensdr))
-
-# # Route handler to update frequency and increment the session
-# @app.route('/update_frequency_and_session', methods=['POST'])
-# def update_frequency_and_session():
-#     data = request.get_json()  # Get the JSON data from the request
-#     frequency = data.get('frequency')
-
-#     # Get the latest session value and increment it by 1
-#     session = get_latest_session() + 1
-
-#     # Connect to the database
-#     conn = sqlite3.connect('database/krakensdr_data.db')
-#     cursor = conn.cursor()
-
-#     # Update the session field for all records
-#     cursor.execute('UPDATE krakensdr_data SET session = ?', (session,))
-
-#     # Save the changes and close the connection
-#     conn.commit()
-#     conn.close()
-
-#     # Return a JSON response with the updated session value
-#     return jsonify({'message': 'Frequency and session updated', 'session': session})
-
-
 
 # Function to launch the Flask web server
 def run_flask_app():

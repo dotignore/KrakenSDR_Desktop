@@ -54,6 +54,7 @@ Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction
   - [ ] average DF
   - [ ] Discarding incorrect data.
   - [ ] Get frequency from Uniden.
+  - [ ] Working with maps stored on a local computer offline maps.
 
 
 ## URL: [Two KrakenSDRs web](https://github.com/dotignore/KrakenSDR_Desktop/tree/main/two_KrakenSDRs_web "Two KrakenSDRs web")
