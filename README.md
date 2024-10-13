@@ -69,11 +69,15 @@ Version ONE KrakenSDR
 ------------
 
 # KrakenScope
+
 KrakenSDR tech specs
 - Obtaining the first bearing from a cold start: 20 to 50 seconds
 - Obtaining a bearing when retuning outside the 2.4 MHz spectrum band: 5 seconds
 - Obtaining a bearing within the 2.4 MHz spectrum band: 2 seconds
 - Bearing update: 0.44 seconds
+-
+- 24 MHz to 1766 MHz tuning Range (standard R820T2 RTL-SDR range, and possibly higher with hacked drivers)
+- 8.3 degrees for the circular array, and 3.4 degrees for the linear array
 
 **My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr** 
 
