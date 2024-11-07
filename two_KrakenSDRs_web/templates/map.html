@@ -7,56 +7,138 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
-        html, body, #map {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-        .leaflet-control-attribution {
-            display: none !important;
-        }        
+        html, body { height: 100%; margin: 0; padding: 0; }
+        #container { display: flex; height: 100%; }
+        #sidebar { width: 400px; background-color: #f0f0f0; padding: 10px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); overflow-y: scroll; }
+        #map { flex-grow: 1; height: 100%; }
+        .leaflet-control-attribution { display: none !important; }
+        .session-item { margin-bottom: 5px; }
     </style>
 </head>
 <body>
-    <div id="map"></div>
+    <div id="container">
+        <div id="sidebar">
+            <div id="session-list"></div>
+        </div>
+        <div id="map"></div>
+    </div>
 
     <script>
-        // Wait for data to load from the server via AJAX
         fetch('/get_coordinates')
         .then(response => response.json())
         .then(data => {
             var coordinates = data.coordinates;
-            var lines = data.lines;
+            var linesBySession = data.lines_by_session;
+            var sessionData = data.session_data;
+            var sdrIdData = data.sdr_id_data;
 
-            // Define the center of the map as the first set of coordinates
+            var sessionList = document.getElementById('session-list');
+
+            // Создаем основной чекбокс в заголовке
+            var header = document.createElement('div');
+            var masterCheckbox = document.createElement('input');
+            masterCheckbox.type = 'checkbox';
+            masterCheckbox.id = 'master-checkbox';
+            masterCheckbox.addEventListener('change', function() {
+                var allCheckboxes = document.querySelectorAll('.session-item input[type="checkbox"]');
+                allCheckboxes.forEach(cb => {
+                    if (cb.checked !== masterCheckbox.checked) {
+                        cb.checked = masterCheckbox.checked;
+                        cb.dispatchEvent(new Event('change'));  // Триггерим событие change
+                    }
+                });
+            });
+            header.appendChild(masterCheckbox);
+
+            var headerLabel = document.createElement('label');
+            headerLabel.innerHTML = 'ID Freq DateTime DF_1 DF_2';
+            header.appendChild(headerLabel);
+
+            sessionList.appendChild(header);
+
+            var earliestFreqBySession = {};
+            sessionData.forEach(function(session) {
+                var sessionId = session[0];
+                var time = session[1];
+                var frequency = session[2];
+                if (!earliestFreqBySession[sessionId] || new Date(time) < new Date(earliestFreqBySession[sessionId])) {
+                    earliestFreqBySession[sessionId] = { time: time, frequency: frequency };
+                }
+            });
+
+            var sdrIdCountsBySession = {};
+            sdrIdData.forEach(function(sdr) {
+                var session = sdr[0];
+                var sdrId = sdr[1];
+                var count = sdr[2];
+                if (!sdrIdCountsBySession[session]) {
+                    sdrIdCountsBySession[session] = {};
+                }
+                sdrIdCountsBySession[session][sdrId] = count;
+            });
+
             var map = L.map('map').setView(coordinates[0], 10);
-
-            // Add tile layer (e.g., OpenStreetMap)
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            var sessionLinesMap = {};
 
-// Add markers to the map without shadow
-for (var i = 0; i < coordinates.length; i++) {
-    L.marker(coordinates[i], {
-        icon: L.icon({
-            iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',  // Standard marker icon
-            iconSize: [25, 41],  // Size of the icon
-            iconAnchor: [12, 41],  // Anchor of the icon (where the point is)
-            popupAnchor: [1, -34],  // Anchor for popup
-            shadowUrl: null  // Remove shadow
-        })
-    }).addTo(map);
-}
+            sessionData.forEach(function(session, index) {
+                var sessionId = session[0];
+                if (sdrIdCountsBySession[sessionId]) {
+                    var sdrCounts = sdrIdCountsBySession[sessionId];
+                    var df_1 = sdrCounts[1] || 0;
+                    var df_2 = sdrCounts[2] || 0;
+                    var time = earliestFreqBySession[sessionId].time || 'N/A';
+                    var frequency = earliestFreqBySession[sessionId].frequency || 'N/A';
 
-            // Add lines to the map
-            for (var j = 0; j < lines.length; j++) {
-                var line = lines[j];
-                L.polyline(line, {color: 'blue', weight: 1}).addTo(map);  // Red line with reduced thickness
-            }
+                    var sessionItem = document.createElement('div');
+                    sessionItem.classList.add('session-item');
 
+                    var checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = 'session-' + sessionId;
+                    checkbox.name = 'session-' + sessionId;
+
+                    // Основной обработчик события для чекбоксов сессий
+                    checkbox.addEventListener('change', function() {
+                        if (checkbox.checked) {
+                            if (!sessionLinesMap[sessionId] && linesBySession[sessionId]) {
+                                sessionLinesMap[sessionId] = [];
+                                linesBySession[sessionId].forEach(line => {
+                                    var polyline = L.polyline(line, {color: 'blue', weight: 1}).addTo(map);
+                                    sessionLinesMap[sessionId].push(polyline);
+                                });
+                            }
+                        } else {
+                            if (sessionLinesMap[sessionId]) {
+                                sessionLinesMap[sessionId].forEach(polyline => {
+                                    map.removeLayer(polyline);
+                                });
+                                delete sessionLinesMap[sessionId];
+                            }
+                        }
+                    });
+
+                    var label = document.createElement('label');
+                    label.setAttribute('for', 'session-' + sessionId);
+                    label.innerText = index + ' ' + frequency + ' ' + time + ' ' + df_1 + ' ' + df_2;
+
+                    sessionItem.appendChild(checkbox);
+                    sessionItem.appendChild(label);
+                    sessionList.appendChild(sessionItem);
+                }
+            });
+
+            coordinates.forEach(coord => {
+                L.marker(coord, {
+                    icon: L.icon({
+                        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowUrl: null
+                    })
+                }).addTo(map);
+            });
         })
         .catch(error => {
             console.error('Error fetching coordinates:', error);

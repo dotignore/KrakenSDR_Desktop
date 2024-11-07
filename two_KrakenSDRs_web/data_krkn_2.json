@@ -4,11 +4,11 @@
             "latitude": 47.131840148609655,
             "longitude": 37.454905671766035
         },
-        "distance_km": 25.0,
+        "distance_km": 35.0,
         "bearing_deg": 140,
         "angles_krakensdr": {
             "max_y": 0.0,
-            "x_for_max_y": 9.0
+            "x_for_max_y": 6.0
         },
         "ws_url": "ws://10.10.1.93:8080/_push"
     }
