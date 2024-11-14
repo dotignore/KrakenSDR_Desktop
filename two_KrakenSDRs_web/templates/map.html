@@ -4,9 +4,11 @@
     <title>Leaflet Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Подключаем стили и скрипты Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <style>
+        /* Стили для страницы и карты */
         html, body { height: 100%; margin: 0; padding: 0; }
         #container { display: flex; height: 100%; }
         #sidebar { width: 400px; background-color: #f0f0f0; padding: 10px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); overflow-y: scroll; }
@@ -81,6 +83,71 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
             var sessionLinesMap = {};
 
+            // Объявляем массивы для хранения линий и маркеров пересечений
+            var allLines = []; // Все отображаемые линии
+            var intersectionMarkers = []; // Маркеры точек пересечения
+
+            // Функция для вычисления пересечения двух отрезков линий
+            function getLineIntersection(a1, a2, b1, b2) {
+                // a1 и a2 — [lat, lng] для первой линии
+                // b1 и b2 — [lat, lng] для второй линии
+
+                // Преобразуем координаты в x и y
+                var x1 = a1[1], y1 = a1[0];
+                var x2 = a2[1], y2 = a2[0];
+                var x3 = b1[1], y3 = b1[0];
+                var x4 = b2[1], y4 = b2[0];
+
+                var denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+                if (denom === 0) {
+                    return null; // Линии параллельны
+                }
+
+                var xi = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / denom;
+                var yi = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / denom;
+
+                // Проверяем, что точка пересечения находится на обоих отрезках
+                if ((xi < Math.min(x1, x2) || xi > Math.max(x1, x2)) ||
+                    (xi < Math.min(x3, x4) || xi > Math.max(x3, x4)) ||
+                    (yi < Math.min(y1, y2) || yi > Math.max(y1, y2)) ||
+                    (yi < Math.min(y3, y4) || yi > Math.max(y3, y4))) {
+                    return null;
+                }
+
+                return [yi, xi]; // Возвращаем как [lat, lng]
+            }
+
+            // Функция для пересчета всех точек пересечения и обновления маркеров
+            function recomputeIntersections() {
+                // Удаляем существующие маркеры пересечений
+                intersectionMarkers.forEach(marker => {
+                    map.removeLayer(marker);
+                });
+                intersectionMarkers = [];
+
+                // Вычисляем пересечения между всеми парами линий
+                for (var i = 0; i < allLines.length; i++) {
+                    var line1 = allLines[i].getLatLngs();
+                    for (var j = i + 1; j < allLines.length; j++) {
+                        var line2 = allLines[j].getLatLngs();
+                        var intersection = getLineIntersection(
+                            [line1[0].lat, line1[0].lng], [line1[1].lat, line1[1].lng],
+                            [line2[0].lat, line2[0].lng], [line2[1].lat, line2[1].lng]
+                        );
+                        if (intersection) {
+                            // Добавляем красный круг вместо стандартного маркера
+                            var marker = L.circleMarker(intersection, {
+                                radius: 5,
+                                color: 'red',
+                                fillColor: 'red',
+                                fillOpacity: 1
+                            }).addTo(map);
+                            intersectionMarkers.push(marker);
+                        }
+                    }
+                }
+            }
+
             sessionData.forEach(function(session, index) {
                 var sessionId = session[0];
                 if (sdrIdCountsBySession[sessionId]) {
@@ -103,17 +170,24 @@
                         if (checkbox.checked) {
                             if (!sessionLinesMap[sessionId] && linesBySession[sessionId]) {
                                 sessionLinesMap[sessionId] = [];
-                                linesBySession[sessionId].forEach(line => {
-                                    var polyline = L.polyline(line, {color: 'blue', weight: 1}).addTo(map);
+                                linesBySession[sessionId].forEach(lineCoords => {
+                                    var polyline = L.polyline(lineCoords, {color: 'blue', weight: 1}).addTo(map);
                                     sessionLinesMap[sessionId].push(polyline);
+                                    allLines.push(polyline);
                                 });
+                                recomputeIntersections();
                             }
                         } else {
                             if (sessionLinesMap[sessionId]) {
                                 sessionLinesMap[sessionId].forEach(polyline => {
                                     map.removeLayer(polyline);
+                                    var index = allLines.indexOf(polyline);
+                                    if (index > -1) {
+                                        allLines.splice(index, 1);
+                                    }
                                 });
                                 delete sessionLinesMap[sessionId];
+                                recomputeIntersections();
                             }
                         }
                     });
@@ -128,6 +202,7 @@
                 }
             });
 
+            // Добавляем маркеры для координат
             coordinates.forEach(coord => {
                 L.marker(coord, {
                     icon: L.icon({

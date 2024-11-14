@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import sqlite3
 
 # Connect to the database
@@ -32,13 +31,20 @@ cursor.execute('SELECT * FROM krakensdr_data')
 # Fetch all the data
 rows = cursor.fetchall()
 
-# Check if there is any data
-if rows:
-    print("Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction")
-    for row in rows:
-        print(row)
-else:
-    print("No data found in the database.")
+# Print and save data to a text file
+with open('output.txt', 'w') as file:
+    if rows:
+        header = "Session, Time, Freq (MHz), KrakenSDR ID, Latitude, Longitude, Bearing, Direction"
+        print(header)
+        file.write(header + "\n")
+        
+        for row in rows:
+            print(row)
+            file.write(f"{row}\n")
+    else:
+        message = "No data found in the database."
+        print(message)
+        file.write(message + "\n")
 
 # Close the connection to the database
 conn.close()
