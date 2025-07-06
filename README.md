@@ -79,7 +79,4 @@ KrakenSDR tech specs
 -
 - 24 MHz to 1766 MHz tuning Range (standard R820T2 RTL-SDR range, and possibly higher with hacked drivers)
 - 8.3 degrees for the circular array, and 3.4 degrees for the linear array
-
-**My contacts: hc158b@gmail.com, https://x.com/VolodymyrTr** 
-
 ------------
